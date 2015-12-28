@@ -14,20 +14,37 @@ $VERSION = '0.01';
     description => 'TODO',
     license => 'BSD',
     url     => 'https://github.com/mrc0mmand/ttirssi',
-    changed	=> 'Mon Dec 28 23:19:25 CET 2015',
+    changed => 'Mon Dec 28 23:19:25 CET 2015',
 );
 
 Irssi::settings_add_str('ttirssi', 'ttirssi_url', '');
 Irssi::settings_add_str('ttirssi', 'ttirssi_username', '');
 Irssi::settings_add_str('ttirssi', 'ttirssi_password', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
 
 our $ttrss_url;
 our $ttrss_api;
 our $ttrss_username;
 our $ttrss_password;
 our $ttrss_session;
+our $win_name;
+our $win;
 
-sub ttrss_login() {
+sub print_info {
+    my ($message, $type) = @_;
+
+    if(not defined $type) {
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP);
+    } elsif($type eq 'error') {
+        Irssi::print("%g[ttirssi] %RError: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } elsif($type eq 'info') {
+        Irssi::print("%g[ttirssi] %GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } else {
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP);
+    }
+}
+
+sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
     my $request = HTTP::Request->new("POST" => $ttrss_api);
@@ -40,20 +57,46 @@ sub ttrss_login() {
         $ttrss_session = $json_resp->{'content'}->{'session_id'};
         return 1;
     } else {
-        print "Error: (" . $response->code . ")" . $response->message;
+        &print_info("(" . $response->code . ")" . $response->message, "error");
         return 0;
     }
 }
 
+sub create_win {
+    # If desired window already exists, don't create a new one
+    $win = Irssi::window_find_name($win_name);
+    if($win) {
+        &print_info("Will use an existing window '$win_name'", "info");
+        return 1;
+    }
+
+    $win = Irssi::Windowitem::window_create($win_name, 1);
+    if(not $win) {
+        &print_info("Failed to create window $win_name", "info");
+        return 0;
+    }
+
+    &print_info("Created a new window '$win_name'", "info");
+    $win->set_name($win_name);
+    return 1;
+}
+
 # Get settings
+# TODO: Check
 $ttrss_url = Irssi::settings_get_str('ttirssi_url');
 $ttrss_api = "$ttrss_url/api/";
 $ttrss_username = Irssi::settings_get_str('ttirssi_username');
 $ttrss_password = Irssi::settings_get_str('ttirssi_password');
+$win_name = Irssi::settings_get_str('ttirssi_win');
+
+if(!&create_win()) {
+    return;
+}
 
 # Try to login
-if(ttrss_login()) {
-    print "Session ID: $ttrss_session";
+if(&ttrss_login()) {
+    &print_info("Session ID: $ttrss_session", "info");
+    $win->print("It works", MSGLEVEL_PUBLIC);
 } else {
-    print "Couldn't get session ID";
+    &print_info("Couldn't get session ID");
 }
