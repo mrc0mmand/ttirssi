@@ -1,1 +1,1 @@
-# tt-irssi
+# ttirssi
