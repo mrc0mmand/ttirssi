@@ -25,3 +25,5 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * `ttirssi_update_interval` - delay between feed updates in seconds (default: 60)
     * `ttirssi_article_limit` - max amount of articles which will be fetched during each update (default: 25)
 * Reload **ttirssi**: `/script load ttirssi.pl` - if everything is set correctly, ttirssi should do an initial feed fetch
+
+![ttirssi screenshot](/../assets/assets/ttirssi.png?raw=true)
