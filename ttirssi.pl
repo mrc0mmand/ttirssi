@@ -3,6 +3,7 @@ use warnings;
 use Irssi;
 use LWP::UserAgent;
 use HTTP::Request;
+use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
@@ -145,13 +146,18 @@ sub ttrss_parse_feed {
             my @headlines = @{$json_resp->{'content'}};
             foreach my $feed (reverse @headlines) {
                 # Replace all % with %% to prevent interpreting %X sequences as color codes
+                # There must be a better way...
                 my $url = $feed->{'link'};
                 $url =~ s/%/%%/g;
                 my $title = $feed->{'title'};
                 $title =~ s/%/%%/g;
+                decode_entities($title);
+                my $feed_title = $feed->{'feed_title'};
+                $feed_title =~ s/%/%%/g;
 
-                $win->print("%K[%9%B" . $feed->{'feed_title'} . "%9%K]%n " . $title . " %r" .
+                $win->print("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
                             $url . "%n", MSGLEVEL_PUBLIC);
+
                 $ttrss_last_id = $feed->{'id'};
             }
         } else {

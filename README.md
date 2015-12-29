@@ -6,6 +6,7 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
 * Perl modules
     * JSON
     * HTTP::Request
+    * HTML::Entities
     * LWP::UserAgent
 * tt-rss
     * Version 1.6.0 or later with enabled API (Preferences -> Enable API access)
