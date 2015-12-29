@@ -68,6 +68,16 @@ sub print_win {
     }
 }
 
+sub ttrss_parse_error {
+    my $json_resp = shift;
+
+    if(exists $json_resp->{'content'}{'error'}) {
+        return $json_resp->{'content'}{'error'};
+    } else {
+        return "Unknown error";
+    }
+}
+
 # Function tries to log into TT-RSS instance ($ttrss_api) with username/password saved in
 # variables $ttrss_username/$ttrss_password.
 # On success a session ID is saved into $ttrss_session and 1 is returned, otherwise 
@@ -86,6 +96,8 @@ sub ttrss_login {
             $ttrss_session = $json_resp->{'content'}->{'session_id'};
             return 1;
         } else {
+            my $error = &ttrss_parse_error($json_resp);
+            &print_win($error, "error");
             return 0;
         }
     } else {
@@ -119,8 +131,11 @@ sub ttrss_parse_feed {
                 $ttrss_last_id = $feed->{'id'};
             }
         } else {
-            &print_win("Couldn't fetch feed headlines");
-            $ttrss_logged = 0;
+            my $error = &ttrss_parse_error($json_resp);
+            &print_win("Couldn't fetch feed headlines: $error", "error");
+            if($error eq "NOT_LOGGED_IN") {
+                $ttrss_logged = 0;
+            }
         }
     } else {
         &print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
