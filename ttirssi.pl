@@ -126,8 +126,14 @@ sub ttrss_parse_feed {
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             my @headlines = @{$json_resp->{'content'}};
             foreach my $feed (reverse @headlines) {
-                $win->print("%K[%9%B" . $feed->{'feed_title'} . "%9%K]%n " . $feed->{'title'} . " %r" .
-                            $feed->{'link'} . "%n", MSGLEVEL_PUBLIC);
+                # Replace all % with %% to prevent interpreting %X sequences as color codes
+                my $url = $feed->{'link'};
+                $url =~ s/%/%%/g;
+                my $title = $feed->{'title'};
+                $title =~ s/%/%%/g;
+
+                $win->print("%K[%9%B" . $feed->{'feed_title'} . "%9%K]%n " . $title . " %r" .
+                            $url . "%n", MSGLEVEL_PUBLIC);
                 $ttrss_last_id = $feed->{'id'};
             }
         } else {
@@ -194,22 +200,22 @@ sub check_settings {
     my $rc = 1;
 
     if($ttrss_url eq "") {
-        &print_info("%9ttirssi_url%9 is required", "error");
+        &print_info("%9ttirssi_url%9 is required but not set", "error");
         $rc = 0;
     }
 
     if($ttrss_username eq "") {
-        &print_info("%9ttirssi_username%9 is required", "error");
+        &print_info("%9ttirssi_username%9 is required but not set", "error");
         $rc = 0;
     }
 
     if($ttrss_password eq "") {
-        &print_info("%9ttirssi_password%9 is required", "error");
+        &print_info("%9ttirssi_password%9 is required but not set", "error");
         $rc = 0;
     }
 
     if($win_name eq "") {
-        &print_info("%9ttirssi_win%9 is required", "error");
+        &print_info("%9ttirssi_win%9 is required but not set", "error");
         $rc = 0;
     }
 
@@ -238,7 +244,7 @@ $ttrss_last_id = -1;
 $default_feed = -3;
 
 if(!&check_settings()) {
-    &print_info("can't continue without valid settings", "error");
+    &print_info("Can't continue without valid settings", "error");
     return;
 }
 
