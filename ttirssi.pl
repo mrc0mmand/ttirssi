@@ -27,6 +27,7 @@ our $ttrss_api;
 our $ttrss_username;
 our $ttrss_password;
 our $ttrss_session;
+our $ttrss_last_id;
 our $win_name;
 our $win;
 
@@ -44,6 +45,20 @@ sub print_info {
     }
 }
 
+sub print_win {
+    my ($message, $type) = @_;
+
+    if(not defined $type) {
+        $win->print($message, MSGLEVEL_CLIENTCRAP);
+    } elsif($type eq 'error') {
+        $win->print("%RError: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } elsif($type eq 'info') {
+        $win->print("%GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } else {
+        $win->print($message, MSGLEVEL_CLIENTCRAP);
+    }
+}
+
 sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
@@ -57,8 +72,36 @@ sub ttrss_login {
         $ttrss_session = $json_resp->{'content'}->{'session_id'};
         return 1;
     } else {
-        &print_info("(" . $response->code . ")" . $response->message, "error");
+        &print_win("(" . $response->code . ") " . $response->message, "error");
         return 0;
+    }
+}
+
+sub ttrss_parse_feed {
+    my ($feed, $limit) = @_;
+    my $ua = new LWP::UserAgent;
+    $ua->agent("ttirssi $VERSION");
+    my $request = HTTP::Request->new("POST" => $ttrss_api);
+    my $first_item = (($ttrss_last_id eq -1) ? "" : '"since_id" : $ttrss_last_id,');
+    my $post_data = '{ "sid":"' . $ttrss_session . '", "op":"getHeadlines", "feed_id": ' . 
+                    $feed . ', ' . $first_item . '"order_by":"date_reverse", "limit":' . $limit . ' }';
+    $request->content($post_data);
+
+    my $response = $ua->request($request);
+    if($response->is_success) {
+        my $json_resp = JSON->new->utf8->decode($response->content);
+        if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
+            my @headlines = @{$json_resp->{'content'}};
+            foreach my $feed (@headlines) {
+                $win->print("[%B" . $feed->{'feed_title'} . "%n] " . $feed->{'title'} . " %r" .
+                            $feed->{'link'} . "%n", MSGLEVEL_PUBLIC);
+                $ttrss_last_id = $feed->{'id'};
+            }
+        } else {
+            &print_win("Couldn't fetch feed headlines (unknown error)", "error");
+        }
+    } else {
+        &print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
     }
 }
 
@@ -72,7 +115,7 @@ sub create_win {
 
     $win = Irssi::Windowitem::window_create($win_name, 1);
     if(not $win) {
-        &print_info("Failed to create window $win_name", "info");
+        &print_info("Failed to create window '$win_name'", "error");
         return 0;
     }
 
@@ -84,10 +127,11 @@ sub create_win {
 # Get settings
 # TODO: Check
 $ttrss_url = Irssi::settings_get_str('ttirssi_url');
-$ttrss_api = "$ttrss_url/api/";
 $ttrss_username = Irssi::settings_get_str('ttirssi_username');
 $ttrss_password = Irssi::settings_get_str('ttirssi_password');
 $win_name = Irssi::settings_get_str('ttirssi_win');
+$ttrss_api = "$ttrss_url/api/";
+$ttrss_last_id = -1;
 
 if(!&create_win()) {
     return;
@@ -96,7 +140,7 @@ if(!&create_win()) {
 # Try to login
 if(&ttrss_login()) {
     &print_info("Session ID: $ttrss_session", "info");
-    $win->print("It works", MSGLEVEL_PUBLIC);
+    &ttrss_parse_feed(-3, 5);
 } else {
     &print_info("Couldn't get session ID");
 }
