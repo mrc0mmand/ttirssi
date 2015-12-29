@@ -2,10 +2,13 @@
 
 An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/gitlab/fox/tt-rss/wikis/home) instance in irssi window 
 
-## Required modules
-* JSON
-* HTTP::Request
-* LWP::UserAgent
+## Requires
+* Perl modules
+    * JSON
+    * HTTP::Request
+    * LWP::UserAgent
+* tt-rss
+    * Version 1.6.0 or later with enabled API (Preferences -> Enable API access)
 
 ## Installation
 * Create a directory for irssi scripts (if it doesn't already exist): `mkdir -p ~/.irssi/scripts`
