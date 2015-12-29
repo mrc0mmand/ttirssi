@@ -91,7 +91,16 @@ sub ttrss_login {
 
     my $response = $ua->request($request);
     if($response->is_success) {
-        my $json_resp = JSON->new->utf8->decode($response->content);
+        my $json_resp;
+        eval {
+            $json_resp = JSON->new->utf8->decode($response->content);
+        };
+
+        if($@) {
+            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            return 0;
+        }
+
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             $ttrss_session = $json_resp->{'content'}->{'session_id'};
             return 1;
@@ -122,7 +131,16 @@ sub ttrss_parse_feed {
 
     my $response = $ua->request($request);
     if($response->is_success) {
-        my $json_resp = JSON->new->utf8->decode($response->content);
+        my $json_resp;
+        eval {
+            $json_resp = JSON->new->utf8->decode($response->content);
+        };
+
+        if($@) {
+            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            return;
+        }
+
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             my @headlines = @{$json_resp->{'content'}};
             foreach my $feed (reverse @headlines) {
