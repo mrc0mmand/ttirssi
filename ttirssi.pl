@@ -219,14 +219,14 @@ sub check_settings {
         $rc = 0;
     }
 
-    if($update_interval < 1) {
+    if($update_interval < (15 * 1000)) {
         $update_interval = 60 * 1000;
-        &print_info("%9ttirssi_update_interval%9 has an invalid value (using default: 60)", "warn");
+        &print_info("%9ttirssi_update_interval%9 has an invalid value [min: 15] (using default: 60)", "warn");
     }
 
     if($article_limit < 1 || $article_limit > 200) {
         $article_limit = 25;
-        &print_info("%9ttirssi_article_limit%9 has an invalid value (using default: 25)", "warn");
+        &print_info("%9ttirssi_article_limit%9 has an invalid value [min: 1, max: 200] (using default: 25)", "warn");
     }
 
     return $rc;
