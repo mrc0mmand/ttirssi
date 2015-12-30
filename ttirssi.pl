@@ -150,8 +150,9 @@ sub ttrss_parse_feed {
                 my $url = $feed->{'link'};
                 $url =~ s/%/%%/g;
                 my $title = $feed->{'title'};
-                $title =~ s/%/%%/g;
                 decode_entities($title);
+                $title =~ s/%/%%/g;
+                $title =~ s/\n/ /g;
                 my $feed_title = $feed->{'feed_title'};
                 $feed_title =~ s/%/%%/g;
 
