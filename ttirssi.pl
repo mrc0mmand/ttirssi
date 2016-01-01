@@ -64,6 +64,8 @@ sub print_win {
         $win->print("%RError: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'info') {
         $win->print("%GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } elsif($type eq 'warn') {
+        $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } else {
         $win->print($message, MSGLEVEL_CLIENTCRAP);
     }
@@ -81,8 +83,8 @@ sub ttrss_parse_error {
 
 # Function tries to log into TT-RSS instance ($ttrss_api) with username/password saved in
 # variables $ttrss_username/$ttrss_password.
-# On success a session ID is saved into $ttrss_session and 1 is returned, otherwise 
-# function returns 0.
+# On success a session ID is saved into $ttrss_session and 0 is returned, otherwise 
+# function returns non-zero integer (1 => recoverable error, 2 => unrecoverable).
 sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
@@ -99,16 +101,27 @@ sub ttrss_login {
 
         if($@) {
             &print_win("Received malformed JSON response from server - check server configuration", "error");
-            return 0;
+            return 1;
         }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             $ttrss_session = $json_resp->{'content'}->{'session_id'};
-            return 1;
-        } else {
-            my $error = &ttrss_parse_error($json_resp);
-            &print_win($error, "error");
             return 0;
+        } else {
+            my $rc = 2;
+            my $error = &ttrss_parse_error($json_resp);
+
+            if($error eq "LOGIN_ERROR") {
+                &print_win("Incorrect username/password", "error");
+            } elsif($error eq "API_DISABLED") {
+                &print_win("API is disabled", "error");
+            } else {
+                # Probably recoverable error
+                &print_win($error, "error");
+                $rc = 1;
+            }
+
+            return $rc;
         }
     } else {
         &print_win("(" . $response->code . ") " . $response->message, "error");
@@ -199,7 +212,11 @@ sub create_win {
 # Function creates new timeout event for feed updating.
 sub add_update_event {
     Irssi::timeout_remove($update_event) if $update_event;
-    $update_interval = Irssi::timeout_add($update_interval, \&call_update, [ $default_feed, $article_limit ]);
+    $update_event = Irssi::timeout_add($update_interval, \&call_update, [ $default_feed, $article_limit ]);
+}
+
+sub remove_update_event {
+    Irssi::timeout_remove($update_event) if $update_event;
 }
 
 # Function tries to perform a feed update. If current user is not logged in, calls
@@ -212,11 +229,16 @@ sub call_update {
     if($ttrss_logged) {
         &ttrss_parse_feed($a[0], $a[1]);
     } else {
-        $ttrss_logged = &ttrss_login();
-        if($ttrss_logged) {
+        my $loginrc = &ttrss_login();
+        if($loginrc eq 0) {
+            $ttrss_logged = 1;
             &ttrss_parse_feed($a[0], $a[1]);
+        } elsif($loginrc eq 1) {
+            &print_win("Recoverable error - next try in ". ($update_interval / 1000) . " seconds", "warn");
         } else {
-            &print_win("Couldn't get session ID", "error");
+            &print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
+            &remove_update_event();
+            return;
         }
     }
 }
@@ -277,7 +299,5 @@ if(!&create_win()) {
     return;
 }
 
-# Try to login
-$ttrss_logged = &ttrss_login();
 &add_update_event();
 &call_update([ $default_feed, $article_limit ]);
