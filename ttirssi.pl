@@ -58,6 +58,10 @@ sub print_info {
 sub print_win {
     my ($message, $type) = @_;
 
+    if(&check_win()) {
+        return;
+    }
+
     if(not defined $type) {
         $win->print($message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'error') {
@@ -135,6 +139,11 @@ sub ttrss_login {
 # Params: $feed, $limit
 sub ttrss_parse_feed {
     my ($feed, $limit) = @_;
+
+    if(&check_win()) {
+        return;
+    }
+
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
     my $request = HTTP::Request->new("POST" => $ttrss_api);
@@ -206,6 +215,18 @@ sub create_win {
 
     &print_info("Created a new window '$win_name'", "info");
     $win->set_name($win_name);
+    return 0;
+}
+
+sub check_win {
+    if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
+        &print_info("Missing window '$win_name'", "error");
+        if(&create_win()) {
+            &remove_update_event();
+            return 1;
+        }
+    }
+
     return 0;
 }
 
