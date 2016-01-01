@@ -7,7 +7,7 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
     contact => 'frantisel@sumsal.cz',
@@ -189,24 +189,24 @@ sub ttrss_parse_feed {
 # Function creates window for ttirssi output with $win_name and saves its
 # instance into $win.
 # If window already exists, existing instance is saved into $win.
-# Returns 1 on success, 0 otherwise.
+# Returns 0 on success, 1 otherwise.
 sub create_win {
     # If desired window already exists, don't create a new one
     $win = Irssi::window_find_name($win_name);
     if($win) {
         &print_info("Will use an existing window '$win_name'", "info");
-        return 1;
+        return 0;
     }
 
     $win = Irssi::Windowitem::window_create($win_name, 1);
     if(not $win) {
         &print_info("Failed to create window '$win_name'", "error");
-        return 0;
+        return 1;
     }
 
     &print_info("Created a new window '$win_name'", "info");
     $win->set_name($win_name);
-    return 1;
+    return 0;
 }
 
 # Function creates new timeout event for feed updating.
@@ -244,26 +244,26 @@ sub call_update {
 }
 
 sub check_settings {
-    my $rc = 1;
+    my $rc = 0;
 
     if($ttrss_url eq "") {
         &print_info("%9ttirssi_url%9 is required but not set", "error");
-        $rc = 0;
+        $rc = 1;
     }
 
     if($ttrss_username eq "") {
         &print_info("%9ttirssi_username%9 is required but not set", "error");
-        $rc = 0;
+        $rc = 1;
     }
 
     if($ttrss_password eq "") {
         &print_info("%9ttirssi_password%9 is required but not set", "error");
-        $rc = 0;
+        $rc = 1;
     }
 
     if($win_name eq "") {
         &print_info("%9ttirssi_win%9 is required but not set", "error");
-        $rc = 0;
+        $rc = 1;
     }
 
     if($update_interval < (15 * 1000)) {
@@ -290,12 +290,12 @@ $ttrss_api = "$ttrss_url/api/";
 $ttrss_last_id = -1;
 $default_feed = -3;
 
-if(!&check_settings()) {
+if(&check_settings()) {
     &print_info("Can't continue without valid settings", "error");
     return;
 }
 
-if(!&create_win()) {
+if(&create_win()) {
     return;
 }
 
