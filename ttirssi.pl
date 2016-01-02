@@ -24,6 +24,8 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_password', '');
 Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
 Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
 Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
+Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
+Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 
@@ -32,14 +34,14 @@ our $ttrss_api;
 our $ttrss_username;
 our $ttrss_password;
 our $ttrss_session;
-our $ttrss_last_id;
 our $ttrss_logged;
 our $win_name;
 our $win;
 our $update_interval;
 our $update_event;
 our $article_limit;
-our $default_feed;
+our @feeds;
+our @categories;
 
 sub cmd_search {
     my $searchstr = shift;
@@ -190,18 +192,20 @@ sub ttrss_login {
 # ttrss_login must be called before to obtain valid session ID
 # Params: $feed, $limit
 sub ttrss_parse_feed {
-    my ($feed, $limit) = @_;
+    my ($feed, $last, $limit, $is_cat) = @_;
 
     if(&check_win()) {
         return;
     }
 
+    my $rc = -1;
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
     my $request = HTTP::Request->new("POST" => $ttrss_api);
-    my $first_item = (($ttrss_last_id eq -1) ? "" : '"since_id" : '. $ttrss_last_id . ', ');
+    my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
+    $is_cat = ($is_cat) ? "true" : "false";
     my $post_data = '{ "sid":"' . $ttrss_session . '", "op":"getHeadlines", "feed_id": ' . 
-                    $feed . ', ' . $first_item . '"limit":' . $limit . ' }';
+                    $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . $is_cat . ' }';
     $request->content($post_data);
 
     my $response = $ua->request($request);
@@ -213,10 +217,11 @@ sub ttrss_parse_feed {
 
         if($@) {
             &print_win("Received malformed JSON response from server - check server configuration", "error");
-            return;
+            return $rc;
         }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
+            $rc = -2;
             my @headlines = @{$json_resp->{'content'}};
             foreach my $feed (reverse @headlines) {
                 # Replace all % with %% to prevent interpreting %X sequences as color codes
@@ -233,7 +238,7 @@ sub ttrss_parse_feed {
                 $win->print("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
                             $url . "%n", MSGLEVEL_PUBLIC);
 
-                $ttrss_last_id = $feed->{'id'};
+                $rc = $feed->{'id'};
             }
         } else {
             my $error = &ttrss_parse_error($json_resp);
@@ -245,6 +250,8 @@ sub ttrss_parse_feed {
     } else {
         &print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
     }
+
+    return $rc;
 }
 
 # Function creates window for ttirssi output with $win_name and saves its
@@ -285,7 +292,7 @@ sub check_win {
 # Function creates new timeout event for feed updating.
 sub add_update_event {
     Irssi::timeout_remove($update_event) if $update_event;
-    $update_event = Irssi::timeout_add($update_interval, \&call_update, [ $default_feed, $article_limit ]);
+    $update_event = Irssi::timeout_add($update_interval, \&call_update, undef);
 }
 
 sub remove_update_event {
@@ -296,16 +303,13 @@ sub remove_update_event {
 # ttrss_login.
 # Params: Array of two elements: feed number, article limit
 sub call_update {
-    my $args = shift;
-    my @a = @{$args};
-
     if($ttrss_logged) {
-        &ttrss_parse_feed($a[0], $a[1]);
+        &do_update();
     } else {
         my $loginrc = &ttrss_login();
         if($loginrc eq 0) {
             $ttrss_logged = 1;
-            &ttrss_parse_feed($a[0], $a[1]);
+            &do_update();
         } elsif($loginrc eq 1) {
             &print_win("Recoverable error - next try in ". ($update_interval / 1000) . " seconds", "warn");
         } else {
@@ -315,6 +319,31 @@ sub call_update {
         }
     }
 }
+
+sub do_update {
+    my $rc;
+
+    foreach my $feed (@feeds) {
+        $rc = &ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
+        if($rc eq -1) {
+            &print_win("Next try in " . ($update_interval / 1000) . " seconds", "warn");
+            return;
+        } elsif($rc ne -2) {
+            $feed->{'last_id'} = $rc;
+        }
+    }
+
+    foreach my $cat (@categories) {
+        $rc = &ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $article_limit, 1);
+        if($rc eq -1) {
+            &print_win("Next try in " . ($update_interval / 1000) . " seconds", "warn");
+            return;
+        } elsif($rc ne -2) {
+            $cat->{'last_id'} = $rc;
+        }
+    }
+}
+
 
 sub check_settings {
     my $rc = 0;
@@ -353,6 +382,24 @@ sub check_settings {
 }
 
 # Get settings
+my $feedstr = Irssi::settings_get_str('ttirssi_feeds');
+for(split(/\s+/, $feedstr)) {
+    if($_ =~ /^\-?\d+\z/) {
+        push(@feeds, { "id" => $_, "last_id" => -1 });
+    } else {
+        &print_info("Invalid feed ID '$_', skipping...", "warn");
+    }
+}
+
+my $catstr = Irssi::settings_get_str('ttirssi_categories');
+for(split(/\s+/, $catstr)) {
+    if($_ =~ /^\-?\d+\z/) {
+        push(@categories, { "id" => $_, "last_id" => -1 });
+    } else {
+        &print_info("Invalid category ID '$_', skipping...", "warn");
+    }
+}
+
 $ttrss_url = Irssi::settings_get_str('ttirssi_url');
 $ttrss_username = Irssi::settings_get_str('ttirssi_username');
 $ttrss_password = Irssi::settings_get_str('ttirssi_password');
@@ -360,8 +407,6 @@ $win_name = Irssi::settings_get_str('ttirssi_win');
 $update_interval = Irssi::settings_get_int('ttirssi_update_interval') * 1000;
 $article_limit = Irssi::settings_get_int('ttirssi_article_limit');
 $ttrss_api = "$ttrss_url/api/";
-$ttrss_last_id = -1;
-$default_feed = -3;
 
 if(&check_settings()) {
     &print_info("Can't continue without valid settings", "error");
@@ -373,4 +418,4 @@ if(&create_win()) {
 }
 
 &add_update_event();
-&call_update([ $default_feed, $article_limit ]);
+&call_update();
