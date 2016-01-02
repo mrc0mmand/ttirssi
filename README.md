@@ -9,7 +9,8 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * HTML::Entities
     * LWP::UserAgent
 * tt-rss
-    * Version 1.6.0 or later with enabled API (Preferences -> Enable API access)
+    * Version 1.7.6 or later with enabled API (Preferences -> Enable API access)
+        * **ttirssi** should work with v1.6.0+, but some features won't be accessible
 
 ## Installation
 * Create a directory for irssi scripts (if it doesn't already exist): `mkdir -p ~/.irssi/scripts`
