@@ -25,7 +25,7 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
 Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
 Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
 
-Irssi::command_bind('twirssi_search', 'cmd_search');
+Irssi::command_bind('ttirssi_search', 'cmd_search');
 
 our $ttrss_url;
 our $ttrss_api;
