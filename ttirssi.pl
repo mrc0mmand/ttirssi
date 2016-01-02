@@ -25,6 +25,8 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
 Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
 Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
 
+Irssi::command_bind('twirssi_search', 'cmd_search');
+
 our $ttrss_url;
 our $ttrss_api;
 our $ttrss_username;
@@ -38,6 +40,56 @@ our $update_interval;
 our $update_event;
 our $article_limit;
 our $default_feed;
+
+sub cmd_search {
+    my $searchstr = shift;
+
+    if(!$ttrss_logged && &ttrss_login()) {
+        return;
+    }
+
+    my $ua = new LWP::UserAgent;
+    $ua->agent("ttirssi $VERSION");
+    my $request = HTTP::Request->new("POST" => $ttrss_api);
+    my $post_data = '{ "sid":"' . $ttrss_session . '", "op":"getFeedTree" }';
+    $request->content($post_data);
+
+    my $response = $ua->request($request);
+    if($response->is_success) {
+        my $json_resp;
+        eval {
+            $json_resp = JSON->new->utf8->decode($response->content);
+        };
+
+        if($@) {
+            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            return;
+        }
+
+        if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
+            &print_win("Search results for: $searchstr", "info");
+            foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
+                if($cat->{'name'} =~ /$searchstr/) {
+                    &print_win("Type: CAT, ID: %C" . $cat->{'bare_id'} . "%n, Name: " . $cat->{'name'});
+                }
+
+                foreach my $feed (@{$cat->{'items'}}) {
+                    if($feed->{'name'} =~ /$searchstr/) {
+                        &print_win("Type: FEED, ID: %M" . $feed->{'bare_id'} . "%n, Name: " . $feed->{'name'});
+                    }
+                }
+            }
+        } else {
+            my $error = &ttrss_parse_error($json_resp);
+            &print_win("Couldn't fetch feeds: $error", "error");
+            if($error eq "NOT_LOGGED_IN") {
+                $ttrss_logged = 0;
+            }
+        }
+    } else {
+        &print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+    }
+}
 
 sub print_info {
     my ($message, $type) = @_;
@@ -93,7 +145,7 @@ sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
     my $request = HTTP::Request->new("POST" => $ttrss_api);
-    my $post_data = '{ "op":"login", "user":"' . $ttrss_username . '","password":"' . $ttrss_password . '"}';
+    my $post_data = '{ "op":"login", "user":"' . $ttrss_username . '","password":"' . $ttrss_password . '" }';
     $request->content($post_data);
 
     my $response = $ua->request($request);
