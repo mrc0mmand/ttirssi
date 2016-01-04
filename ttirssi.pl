@@ -8,6 +8,12 @@ use JSON;
 use threads;
 use vars qw($VERSION %IRSSI);
 
+# Nasty workaround for Irssi package warnings
+{ package Irssi::Nick }
+{ package Irssi::ServerConnect }
+{ package Irssi::ServerSetup }
+{ package Irssi::Chatnet }
+
 $VERSION = '0.02';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
