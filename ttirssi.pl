@@ -5,6 +5,7 @@ use LWP::UserAgent;
 use HTTP::Request;
 use HTML::Entities;
 use JSON;
+use threads;
 use vars qw($VERSION %IRSSI);
 
 $VERSION = '0.02';
@@ -40,6 +41,7 @@ our $win;
 our $update_interval;
 our $update_event;
 our $article_limit;
+our $update_thread;
 our @feeds;
 our @categories;
 
@@ -303,6 +305,17 @@ sub remove_update_event {
 # ttrss_login.
 # Params: Array of two elements: feed number, article limit
 sub call_update {
+    if(not defined $update_thread) {
+        $update_thread = threads->create(\&prepare_update);
+    } elsif($update_thread->is_joinable()) {
+        $update_thread->join();
+        $update_thread = threads->create(\&prepare_update);
+    } else {
+        &print_win("Previous update is still in progress, skipping current one", "warn");
+    }
+}
+
+sub prepare_update {
     if($ttrss_logged) {
         &do_update();
     } else {
