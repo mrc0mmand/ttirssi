@@ -1,11 +1,12 @@
 use strict;
 use warnings;
+use threads;
+use threads::shared;
 use Irssi;
 use LWP::UserAgent;
 use HTTP::Request;
 use HTML::Entities;
 use JSON;
-use threads;
 use vars qw($VERSION %IRSSI);
 
 # Nasty workaround for Irssi package warnings
@@ -35,21 +36,25 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
 Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
+Irssi::command_bind('ttirssi_list_feeds', 'cmd_list_feeds');
+Irssi::command_bind('ttirssi_list_categories', 'cmd_list_categories');
+Irssi::command_bind('ttirssi_list', 'cmd_list');
+
 
 our $ttrss_url;
 our $ttrss_api;
 our $ttrss_username;
 our $ttrss_password;
-our $ttrss_session;
-our $ttrss_logged;
+our $ttrss_session :shared;
+our $ttrss_logged :shared;
 our $win_name;
-our $win;
+our $win_ref :shared;
 our $update_interval;
 our $update_event;
 our $article_limit;
 our $update_thread;
-our @feeds;
-our @categories;
+our @feeds :shared;
+our @categories :shared;
 
 sub cmd_search {
     my $searchstr = shift;
@@ -101,6 +106,20 @@ sub cmd_search {
     }
 }
 
+sub cmd_list_feeds {
+    &cmd_list('FEED');
+}
+
+sub cmd_list_categories {
+    &cmd_list('CAT');
+}
+
+sub cmd_list {
+    my $sel = shift;
+
+    &print_win($sel, "info");
+}
+
 sub print_info {
     my ($message, $type) = @_;
 
@@ -124,6 +143,8 @@ sub print_win {
         return;
     }
 
+    my $win = Irssi::window_find_refnum($win_ref);
+
     if(not defined $type) {
         $win->print($message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'error') {
@@ -132,6 +153,8 @@ sub print_win {
         $win->print("%GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'warn') {
         $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
+    } elsif($type eq 'feed') {
+        $win->print($message, MSGLEVEL_PUBLIC);
     } else {
         $win->print($message, MSGLEVEL_CLIENTCRAP);
     }
@@ -243,8 +266,7 @@ sub ttrss_parse_feed {
                 my $feed_title = $feed->{'feed_title'};
                 $feed_title =~ s/%/%%/g;
 
-                $win->print("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
-                            $url . "%n", MSGLEVEL_PUBLIC);
+                &print_win("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" . $url . "%n", "feed");
 
                 $rc = $feed->{'id'};
             }
@@ -268,9 +290,10 @@ sub ttrss_parse_feed {
 # Returns 0 on success, 1 otherwise.
 sub create_win {
     # If desired window already exists, don't create a new one
-    $win = Irssi::window_find_name($win_name);
+    my $win = Irssi::window_find_name($win_name);
     if($win) {
         &print_info("Will use an existing window '$win_name'", "info");
+        $win_ref = $win->{'refnum'};
         return 0;
     }
 
@@ -282,11 +305,12 @@ sub create_win {
 
     &print_info("Created a new window '$win_name'", "info");
     $win->set_name($win_name);
+    $win_ref = $win->{'refnum'};
     return 0;
 }
 
 sub check_win {
-    if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
+    if(not defined $win_ref || !Irssi::window_find_refnum($win_ref)) {
         &print_info("Missing window '$win_name'", "error");
         if(&create_win()) {
             &remove_update_event();
@@ -307,14 +331,14 @@ sub remove_update_event {
     Irssi::timeout_remove($update_event) if $update_event;
 }
 
-# Function tries to perform a feed update. If current user is not logged in, calls
-# ttrss_login.
-# Params: Array of two elements: feed number, article limit
 sub call_update {
     if(not defined $update_thread) {
         $update_thread = threads->create(\&prepare_update);
-    } elsif($update_thread->is_joinable()) {
-        $update_thread->join();
+    } elsif(!$update_thread->is_running() || $update_thread->is_joinable()) {
+        if($update_thread->is_running()) {
+            $update_thread->join();
+        }
+
         $update_thread = threads->create(\&prepare_update);
     } else {
         &print_win("Previous update is still in progress, skipping current one", "warn");
@@ -342,7 +366,9 @@ sub prepare_update {
 sub do_update {
     my $rc;
 
+    &print_info("Session ID: $ttrss_session", "info");
     foreach my $feed (@feeds) {
+        &print_info("Feed ID: " . $feed->{'last_id'}, "info");
         $rc = &ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
         if($rc eq -1) {
             &print_win("Next try in " . ($update_interval / 1000) . " seconds", "warn");
@@ -404,7 +430,10 @@ sub check_settings {
 my $feedstr = Irssi::settings_get_str('ttirssi_feeds');
 for(split(/\s+/, $feedstr)) {
     if($_ =~ /^\-?\d+\z/) {
-        push(@feeds, { "id" => $_, "last_id" => -1 });
+        my %f :shared;
+        $f{"id"} = $_;
+        $f{"last_id"} = -1;
+        push(@feeds, \%f);
     } else {
         &print_info("Invalid feed ID '$_', skipping...", "warn");
     }
@@ -413,7 +442,10 @@ for(split(/\s+/, $feedstr)) {
 my $catstr = Irssi::settings_get_str('ttirssi_categories');
 for(split(/\s+/, $catstr)) {
     if($_ =~ /^\-?\d+\z/) {
-        push(@categories, { "id" => $_, "last_id" => -1 });
+        my %c :shared;
+        $c{"id"} = $_;
+        $c{"last_id"} = -1;
+        push(@categories, \%c);
     } else {
         &print_info("Invalid category ID '$_', skipping...", "warn");
     }
