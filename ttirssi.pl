@@ -4,7 +4,6 @@ use Irssi;
 use LWP::UserAgent;
 use HTTP::Request;
 use HTML::Entities;
-use AnyEvent;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
@@ -38,7 +37,6 @@ our $update_event;
 our $article_limit;
 our @feeds;
 our @categories;
-our $timer;
 
 sub cmd_search {
     my $searchstr = shift;
@@ -289,7 +287,7 @@ sub check_win {
 # Function creates new timeout event for feed updating.
 sub add_update_event {
     Irssi::timeout_remove($update_event) if $update_event;
-    $update_event = Irssi::timeout_add($update_interval, \&call_update, undef);
+    $update_event = Irssi::timeout_add($update_interval * 1000, \&call_update, undef);
 }
 
 sub remove_update_event {
@@ -308,7 +306,7 @@ sub call_update {
             $api{'is_logged'} = 1;
             &do_update();
         } elsif($loginrc eq 1) {
-            &print_win("Recoverable error - next try in ". ($update_interval / 1000) . " seconds", "warn");
+            &print_win("Recoverable error - next try in ". $update_interval . " seconds", "warn");
         } else {
             &print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
             &remove_update_event();
@@ -323,7 +321,7 @@ sub do_update {
     foreach my $feed (@feeds) {
         $rc = &ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
         if($rc eq -1) {
-            &print_win("Next try in " . ($update_interval / 1000) . " seconds", "warn");
+            &print_win("Next try in " . $update_interval . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $feed->{'last_id'} = $rc;
@@ -333,7 +331,7 @@ sub do_update {
     foreach my $cat (@categories) {
         $rc = &ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $article_limit, 1);
         if($rc eq -1) {
-            &print_win("Next try in " . ($update_interval / 1000) . " seconds", "warn");
+            &print_win("Next try in " . $update_interval . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $cat->{'last_id'} = $rc;
@@ -365,8 +363,8 @@ sub check_settings {
         $rc = 1;
     }
 
-    if($update_interval < (15 * 1000)) {
-        $update_interval = 60 * 1000;
+    if($update_interval < 15) {
+        $update_interval = 60;
         &print_info("%9ttirssi_update_interval%9 has an invalid value [min: 15] (using default: 60)", "warn");
     }
 
@@ -401,7 +399,7 @@ $api{'inst_url'} = Irssi::settings_get_str('ttirssi_url');
 $api{'username'} = Irssi::settings_get_str('ttirssi_username');
 $api{'password'}= Irssi::settings_get_str('ttirssi_password');
 $win_name = Irssi::settings_get_str('ttirssi_win');
-$update_interval = Irssi::settings_get_int('ttirssi_update_interval') * 1000;
+$update_interval = Irssi::settings_get_int('ttirssi_update_interval');
 $article_limit = Irssi::settings_get_int('ttirssi_article_limit');
 $api{'url'} = $api{'inst_url'} . "/api/";
 $api{'session'} = "";
