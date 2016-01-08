@@ -4,6 +4,7 @@ use Irssi;
 use LWP::UserAgent;
 use HTTP::Request;
 use HTML::Entities;
+use AnyEvent;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
@@ -29,12 +30,7 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 
-our $ttrss_url;
-our $ttrss_api;
-our $ttrss_username;
-our $ttrss_password;
-our $ttrss_session;
-our $ttrss_logged;
+our %api;
 our $win_name;
 our $win;
 our $update_interval;
@@ -42,18 +38,19 @@ our $update_event;
 our $article_limit;
 our @feeds;
 our @categories;
+our $timer;
 
 sub cmd_search {
     my $searchstr = shift;
 
-    if(!$ttrss_logged && &ttrss_login()) {
+    if(!$api{'is_logged'} && &ttrss_login()) {
         return;
     }
 
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
-    my $request = HTTP::Request->new("POST" => $ttrss_api);
-    my $post_data = '{ "sid":"' . $ttrss_session . '", "op":"getFeedTree" }';
+    my $request = HTTP::Request->new("POST" => $api{'url'});
+    my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
     $request->content($post_data);
 
     my $response = $ua->request($request);
@@ -85,7 +82,7 @@ sub cmd_search {
             my $error = &ttrss_parse_error($json_resp);
             &print_win("Couldn't fetch feeds: $error", "error");
             if($error eq "NOT_LOGGED_IN") {
-                $ttrss_logged = 0;
+                $api{'is_logged'} = 0;
             }
         }
     } else {
@@ -139,15 +136,15 @@ sub ttrss_parse_error {
     }
 }
 
-# Function tries to log into TT-RSS instance ($ttrss_api) with username/password saved in
-# variables $ttrss_username/$ttrss_password.
-# On success a session ID is saved into $ttrss_session and 0 is returned, otherwise 
+# Function tries to log into TT-RSS instance ($api{'url'}) with username/password saved in
+# variables $api{'username'}/$api{'password'}.
+# On success a session ID is saved into $api{'session'} and 0 is returned, otherwise 
 # function returns non-zero integer (1 => recoverable error, 2 => unrecoverable).
 sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
-    my $request = HTTP::Request->new("POST" => $ttrss_api);
-    my $post_data = '{ "op":"login", "user":"' . $ttrss_username . '","password":"' . $ttrss_password . '" }';
+    my $request = HTTP::Request->new("POST" => $api{'url'});
+    my $post_data = '{ "op":"login", "user":"' . $api{'username'} . '","password":"' . $api{'password'} . '" }';
     $request->content($post_data);
 
     my $response = $ua->request($request);
@@ -163,7 +160,7 @@ sub ttrss_login {
         }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
-            $ttrss_session = $json_resp->{'content'}->{'session_id'};
+            $api{'session'} = $json_resp->{'content'}->{'session_id'};
             return 0;
         } else {
             my $rc = 2;
@@ -201,10 +198,10 @@ sub ttrss_parse_feed {
     my $rc = -1;
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
-    my $request = HTTP::Request->new("POST" => $ttrss_api);
+    my $request = HTTP::Request->new("POST" => $api{'url'});
     my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
     $is_cat = ($is_cat) ? "true" : "false";
-    my $post_data = '{ "sid":"' . $ttrss_session . '", "op":"getHeadlines", "feed_id": ' . 
+    my $post_data = '{ "sid":"' . $api{'session'} . '", "op":"getHeadlines", "feed_id": ' . 
                     $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . $is_cat . ' }';
     $request->content($post_data);
 
@@ -244,7 +241,7 @@ sub ttrss_parse_feed {
             my $error = &ttrss_parse_error($json_resp);
             &print_win("Couldn't fetch feed headlines: $error", "error");
             if($error eq "NOT_LOGGED_IN") {
-                $ttrss_logged = 0;
+                $api{'is_logged'} = 0;
             }
         }
     } else {
@@ -303,12 +300,12 @@ sub remove_update_event {
 # ttrss_login.
 # Params: Array of two elements: feed number, article limit
 sub call_update {
-    if($ttrss_logged) {
+    if($api{'is_logged'}) {
         &do_update();
     } else {
         my $loginrc = &ttrss_login();
         if($loginrc eq 0) {
-            $ttrss_logged = 1;
+            $api{'is_logged'} = 1;
             &do_update();
         } elsif($loginrc eq 1) {
             &print_win("Recoverable error - next try in ". ($update_interval / 1000) . " seconds", "warn");
@@ -348,17 +345,17 @@ sub do_update {
 sub check_settings {
     my $rc = 0;
 
-    if($ttrss_url eq "") {
+    if($api{'inst_url'} eq "") {
         &print_info("%9ttirssi_url%9 is required but not set", "error");
         $rc = 1;
     }
 
-    if($ttrss_username eq "") {
+    if($api{'username'} eq "") {
         &print_info("%9ttirssi_username%9 is required but not set", "error");
         $rc = 1;
     }
 
-    if($ttrss_password eq "") {
+    if($api{'password'} eq "") {
         &print_info("%9ttirssi_password%9 is required but not set", "error");
         $rc = 1;
     }
@@ -400,13 +397,15 @@ for(split(/\s+/, $catstr)) {
     }
 }
 
-$ttrss_url = Irssi::settings_get_str('ttirssi_url');
-$ttrss_username = Irssi::settings_get_str('ttirssi_username');
-$ttrss_password = Irssi::settings_get_str('ttirssi_password');
+$api{'inst_url'} = Irssi::settings_get_str('ttirssi_url');
+$api{'username'} = Irssi::settings_get_str('ttirssi_username');
+$api{'password'}= Irssi::settings_get_str('ttirssi_password');
 $win_name = Irssi::settings_get_str('ttirssi_win');
 $update_interval = Irssi::settings_get_int('ttirssi_update_interval') * 1000;
 $article_limit = Irssi::settings_get_int('ttirssi_article_limit');
-$ttrss_api = "$ttrss_url/api/";
+$api{'url'} = $api{'inst_url'} . "/api/";
+$api{'session'} = "";
+$api{'is_logged'} = 0;
 
 if(&check_settings()) {
     &print_info("Can't continue without valid settings", "error");
