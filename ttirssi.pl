@@ -28,6 +28,7 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
 Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
+Irssi::command_bind('ttirssi_check', 'cmd_check');
 
 our %api;
 our $win_name;
@@ -47,6 +48,7 @@ sub cmd_search {
 
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
+    $ua->timeout(10);
     my $request = HTTP::Request->new("POST" => $api{'url'});
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
     $request->content($post_data);
@@ -85,6 +87,85 @@ sub cmd_search {
         }
     } else {
         &print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+    }
+}
+
+sub cmd_check {
+    my $searchstr = shift;
+
+    if(!$api{'is_logged'} && &ttrss_login()) {
+        return;
+    }
+
+    my $ua = new LWP::UserAgent;
+    $ua->agent("ttirssi $VERSION");
+    $ua->timeout(10);
+    my $request = HTTP::Request->new("POST" => $api{'url'});
+    my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
+    $request->content($post_data);
+
+    my $response = $ua->request($request);
+    if($response->is_success) {
+        my @c = @categories;
+        my @f = @feeds;
+
+        my $json_resp;
+        eval {
+            $json_resp = JSON->new->utf8->decode($response->content);
+        };
+
+        if($@) {
+            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            return;
+        }
+
+        if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
+            foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
+                &array_remove_id(\@c, $cat->{'bare_id'});
+
+                foreach my $feed (@{$cat->{'items'}}) {
+                    &array_remove_id(\@f, $feed->{'bare_id'});
+                }
+            }
+
+            if($#c ne -1) {
+                my $str = "";
+                &print_win("Invalid category IDs: ", "info");
+                foreach my $cat (@c) {
+                    $str .= "%C " . $cat->{'id'} . "%n ";
+                }
+
+                &print_win($str);
+            }
+
+            if($#f ne -1) {
+                my $str = "";
+                &print_win("Invalid feed IDs: ", "info");
+                foreach my $feed (@f) {
+                    $str .= "%M " . $feed->{'id'} . "%n ";
+                }
+
+                &print_win($str);
+            }
+        } else {
+            my $error = &ttrss_parse_error($json_resp);
+            &print_win("Couldn't fetch feeds: $error", "error");
+            if($error eq "NOT_LOGGED_IN") {
+                $api{'is_logged'} = 0;
+            }
+        }
+    } else {
+        &print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+    }
+}
+
+sub array_remove_id {
+    my ($a, $id) = @_;
+
+    foreach my $i (0 .. $#{ $a }) {
+        if($a->[$i]->{'id'} eq $id) {
+            splice(@$a, $i, 1);
+        }
     }
 }
 
@@ -141,6 +222,7 @@ sub ttrss_parse_error {
 sub ttrss_login {
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
+    $ua->timeout(10);
     my $request = HTTP::Request->new("POST" => $api{'url'});
     my $post_data = '{ "op":"login", "user":"' . $api{'username'} . '","password":"' . $api{'password'} . '" }';
     $request->content($post_data);
@@ -196,6 +278,7 @@ sub ttrss_parse_feed {
     my $rc = -1;
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
+    $ua->timeout(10);
     my $request = HTTP::Request->new("POST" => $api{'url'});
     my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
     $is_cat = ($is_cat) ? "true" : "false";
