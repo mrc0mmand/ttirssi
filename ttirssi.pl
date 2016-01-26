@@ -283,7 +283,8 @@ sub ttrss_parse_feed {
     my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
     $is_cat = ($is_cat) ? "true" : "false";
     my $post_data = '{ "sid":"' . $api{'session'} . '", "op":"getHeadlines", "feed_id": ' . 
-                    $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . $is_cat . ' }';
+                    $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . 
+                    $is_cat . ', "order_by":"feed_dates" }';
     $request->content($post_data);
 
     my $response = $ua->request($request);
@@ -301,7 +302,8 @@ sub ttrss_parse_feed {
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             $rc = -2;
             my @headlines = @{$json_resp->{'content'}};
-            foreach my $feed (reverse @headlines) {
+
+            foreach my $feed (@headlines) {
                 # Replace all % with %% to prevent interpreting %X sequences as color codes
                 # There must be a better way...
                 my $url = $feed->{'link'};
