@@ -7,7 +7,7 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.02';
+$VERSION = '0.05';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
     contact => 'frantisel@sumsal.cz',
@@ -130,7 +130,7 @@ sub cmd_check {
 
             if($#c ne -1) {
                 my $str = "";
-                &print_win("Invalid category IDs: ", "info");
+                &print_win("Invalid category IDs: ", "warn");
                 foreach my $cat (@c) {
                     $str .= "%C " . $cat->{'id'} . "%n ";
                 }
@@ -140,12 +140,16 @@ sub cmd_check {
 
             if($#f ne -1) {
                 my $str = "";
-                &print_win("Invalid feed IDs: ", "info");
+                &print_win("Invalid feed IDs: ", "warn");
                 foreach my $feed (@f) {
                     $str .= "%M " . $feed->{'id'} . "%n ";
                 }
 
                 &print_win($str);
+            }
+
+            if($#c eq -1 && $#f eq -1) {
+                &print_win("All IDs are correct", "info");
             }
         } else {
             my $error = &ttrss_parse_error($json_resp);
