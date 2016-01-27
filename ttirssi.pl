@@ -322,7 +322,9 @@ sub ttrss_parse_feed {
                 $win->print("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
                             $url . "%n", MSGLEVEL_PUBLIC);
 
-                $rc = $feed->{'id'};
+                if($rc < $feed->{'id'}) {
+                    $rc = $feed->{'id'};
+                }
             }
         } else {
             my $error = &ttrss_parse_error($json_resp);
