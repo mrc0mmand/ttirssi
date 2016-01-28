@@ -1,5 +1,6 @@
 use strict;
 use warnings;
+use AnyEvent;
 use Irssi;
 use LWP::UserAgent;
 use HTTP::Request;
@@ -377,12 +378,12 @@ sub check_win {
 
 # Function creates new timeout event for feed updating.
 sub add_update_event {
-    Irssi::timeout_remove($update_event) if $update_event;
-    $update_event = Irssi::timeout_add($update_interval * 1000, \&call_update, undef);
+    undef $update_event;
+    $update_event = AnyEvent->timer(after => 1, interval => $update_interval, cb => \&call_update);
 }
 
 sub remove_update_event {
-    Irssi::timeout_remove($update_event) if $update_event;
+    undef $update_event;
 }
 
 # Function tries to perform a feed update. If current user is not logged in, calls
@@ -506,4 +507,3 @@ if(&create_win()) {
 }
 
 &add_update_event();
-&call_update();

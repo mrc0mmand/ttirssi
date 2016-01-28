@@ -4,6 +4,7 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
 
 ## Requires
 * Perl modules
+    * AnyEvent
     * JSON
     * HTTP::Request
     * HTML::Entities
@@ -34,8 +35,5 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * Without any argument it just lists all your feeds and categories with their IDs
     * When the first argument is used, it works as a regular expression which filters feeds/categories from your feed tree
 * `ttirssi_check` - this functions so far just compares your `ttirssi_feeds` and `ttirssi_categories` against your feed tree and prints out all invalid IDs (in the future it should also allow removing these IDs from aforementioned variables)
-
-## Notes
-* Currently all feed/category fetching is being done in the main irssi loop, which can lag your irssi UI for few moments or even for few seconds if you have queued many feeds/categories (or if there's a bigger network latency). This should be fixed soon, I just have to somehow solve it without threads and in some elegant way.
 
 ![ttirssi screenshot](/../assets/assets/ttirssi.png?raw=true)
