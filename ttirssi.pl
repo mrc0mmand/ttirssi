@@ -95,7 +95,7 @@ sub cmd_check {
         return;
     }
 
-    my ($href, $data) = Irssi::command_parse_options('ttirssi_check', $data);
+    my ($href) = Irssi::command_parse_options('ttirssi_check', $data);
     my $listall = exists $href->{'listall'};
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
     my $response = &http_post_request($api{'url'}, $post_data);
