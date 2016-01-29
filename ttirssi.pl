@@ -16,7 +16,7 @@ $VERSION = '0.05';
     description => 'An irssi script which shows recent articles from tt-rss instance in irssi window',
     license => 'BSD',
     url     => 'https://github.com/mrc0mmand/ttirssi',
-    changed => 'Mon Dec 28 23:19:25 CET 2015',
+    changed => 'Fri Jan 29 11:41:52 CET 2016',
 );
 
 Irssi::settings_add_str('ttirssi', 'ttirssi_url', '');
@@ -30,6 +30,8 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
+
+Irssi::command_set_options('ttirssi_check', '-listall -remove');
 
 our %api;
 our $win_name;
@@ -92,12 +94,14 @@ sub cmd_search {
 }
 
 sub cmd_check {
-    my $searchstr = shift;
+    my $data = shift;
 
     if(!$api{'is_logged'} && &ttrss_login()) {
         return;
     }
 
+    my ($href, $data) = Irssi::command_parse_options('ttirssi_check', $data);
+    my $listall = exists $href->{'listall'};
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
     $ua->timeout(10);
@@ -122,10 +126,14 @@ sub cmd_check {
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
-                &array_remove_id(\@c, $cat->{'bare_id'});
+                if(&array_remove_id(\@c, $cat->{'bare_id'}) && $listall) {
+                    &print_win("CAT:%C " . $cat->{'bare_id'} . "%n - " . $cat->{'name'}, "info");
+                }
 
                 foreach my $feed (@{$cat->{'items'}}) {
-                    &array_remove_id(\@f, $feed->{'bare_id'});
+                    if(&array_remove_id(\@f, $feed->{'bare_id'}) && $listall) {
+                        &print_win("FEED:%M " . $feed->{'bare_id'} . "%n - " . $feed->{'name'}, "info");
+                    }
                 }
             }
 
@@ -166,12 +174,16 @@ sub cmd_check {
 
 sub array_remove_id {
     my ($a, $id) = @_;
+    my $rc = 0;
 
     foreach my $i (0 .. $#{ $a }) {
         if($a->[$i]->{'id'} eq $id) {
             splice(@$a, $i, 1);
+            $rc = 1;
         }
     }
+
+    return $rc;
 }
 
 sub print_info {
@@ -361,6 +373,7 @@ sub create_win {
 
     &print_info("Created a new window '$win_name'", "info");
     $win->set_name($win_name);
+
     return 0;
 }
 
