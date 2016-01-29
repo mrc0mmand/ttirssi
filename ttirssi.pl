@@ -49,14 +49,9 @@ sub cmd_search {
         return;
     }
 
-    my $ua = new LWP::UserAgent;
-    $ua->agent("ttirssi $VERSION");
-    $ua->timeout(10);
-    my $request = HTTP::Request->new("POST" => $api{'url'});
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
-    $request->content($post_data);
+    my $response = &http_post_request($api{'url'}, $post_data);
 
-    my $response = $ua->request($request);
     if($response->is_success) {
         my $json_resp;
         eval {
@@ -102,14 +97,9 @@ sub cmd_check {
 
     my ($href, $data) = Irssi::command_parse_options('ttirssi_check', $data);
     my $listall = exists $href->{'listall'};
-    my $ua = new LWP::UserAgent;
-    $ua->agent("ttirssi $VERSION");
-    $ua->timeout(10);
-    my $request = HTTP::Request->new("POST" => $api{'url'});
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
-    $request->content($post_data);
+    my $response = &http_post_request($api{'url'}, $post_data);
 
-    my $response = $ua->request($request);
     if($response->is_success) {
         my @c = @categories;
         my @f = @feeds;
@@ -222,6 +212,17 @@ sub print_win {
     }
 }
 
+sub http_post_request {
+    my ($url, $data) = @_;
+    my $ua = new LWP::UserAgent;
+    $ua->agent("ttirssi $VERSION");
+    $ua->timeout(10);
+    my $request = HTTP::Request->new("POST" => $url);
+    $request->content($data);
+
+    return $ua->request($request);
+}
+
 sub ttrss_parse_error {
     my $json_resp = shift;
 
@@ -237,14 +238,9 @@ sub ttrss_parse_error {
 # On success a session ID is saved into $api{'session'} and 0 is returned, otherwise 
 # function returns non-zero integer (1 => recoverable error, 2 => unrecoverable).
 sub ttrss_login {
-    my $ua = new LWP::UserAgent;
-    $ua->agent("ttirssi $VERSION");
-    $ua->timeout(10);
-    my $request = HTTP::Request->new("POST" => $api{'url'});
     my $post_data = '{ "op":"login", "user":"' . $api{'username'} . '","password":"' . $api{'password'} . '" }';
-    $request->content($post_data);
+    my $response = &http_post_request($api{'url'}, $post_data);
 
-    my $response = $ua->request($request);
     if($response->is_success) {
         my $json_resp;
         eval {
@@ -293,18 +289,13 @@ sub ttrss_parse_feed {
     }
 
     my $rc = -1;
-    my $ua = new LWP::UserAgent;
-    $ua->agent("ttirssi $VERSION");
-    $ua->timeout(10);
-    my $request = HTTP::Request->new("POST" => $api{'url'});
     my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
     $is_cat = ($is_cat) ? "true" : "false";
     my $post_data = '{ "sid":"' . $api{'session'} . '", "op":"getHeadlines", "feed_id": ' . 
                     $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . 
                     $is_cat . ', "order_by":"feed_dates" }';
-    $request->content($post_data);
+    my $response = &http_post_request($api{'url'}, $post_data);
 
-    my $response = $ua->request($request);
     if($response->is_success) {
         my $json_resp;
         eval {
