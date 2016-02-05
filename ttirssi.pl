@@ -33,14 +33,14 @@ Irssi::command_bind('ttirssi_check', 'cmd_check');
 
 Irssi::command_set_options('ttirssi_check', '-listall -remove');
 
-our %api;
-our $win_name;
-our $win;
-our $update_interval;
-our $update_event;
-our $article_limit;
-our @feeds;
-our @categories;
+my %api;
+my $win_name;
+my $win;
+my $update_interval;
+my $update_event;
+my $article_limit;
+my @feeds;
+my @categories;
 
 sub cmd_search {
     my $searchstr = shift;
@@ -86,6 +86,8 @@ sub cmd_search {
     } else {
         print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
+
+    return;
 }
 
 sub cmd_check {
@@ -187,6 +189,8 @@ sub cmd_check {
     } else {
         print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
+
+    return;
 }
 
 sub array_remove_id {
@@ -217,6 +221,8 @@ sub print_info {
     } else {
         Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP);
     }
+
+    return;
 }
 
 sub print_win {
@@ -237,12 +243,14 @@ sub print_win {
     } else {
         $win->print($message, MSGLEVEL_CLIENTCRAP);
     }
+
+    return;
 }
 
 sub http_post_request {
     # TODO: Blocking I/O in request could cause some problems
     my ($url, $data) = @_;
-    my $ua = new LWP::UserAgent;
+    my $ua = LWP::UserAgent->new;
     $ua->agent("ttirssi $VERSION");
     $ua->timeout(10);
     my $request = HTTP::Request->new("POST" => $url);
@@ -412,10 +420,14 @@ sub check_win {
 sub add_update_event {
     undef $update_event;
     $update_event = AnyEvent->timer(after => 1, interval => $update_interval, cb => \&call_update);
+
+    return;
 }
 
 sub remove_update_event {
     undef $update_event;
+
+    return;
 }
 
 # Function tries to perform a feed update. If current user is not logged in, calls
@@ -437,6 +449,8 @@ sub call_update {
             return;
         }
     }
+
+    return;
 }
 
 sub do_update {
@@ -461,6 +475,8 @@ sub do_update {
             $cat->{'last_id'} = $rc;
         }
     }
+
+    return;
 }
 
 
