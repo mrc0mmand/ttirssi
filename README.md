@@ -34,6 +34,9 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
 * `ttirssi_search` - because `ttirssi_feeds` and `ttirssi_categories` require IDs as their parameters, this function should make this easier
     * Without any argument it just lists all your feeds and categories with their IDs
     * When the first argument is used, it works as a regular expression which filters feeds/categories from your feed tree
-* `ttirssi_check` - this functions so far just compares your `ttirssi_feeds` and `ttirssi_categories` against your feed tree and prints out all invalid IDs (in the future it should also allow removing these IDs from aforementioned variables)
+* `ttirssi_check` - this functions compares your `ttirssi_feeds` and `ttirssi_categories` against your feed tree and prints out all invalid IDs
+    * Options:
+        * `-remove` - remove all invalid IDs from their variables after the check is done (so far this option doesn't reload internal variables, so you have to reload *ttirssi* manually to reload ID lists. This should be fixed soon.)
+        * `-listall` - list all IDs (valid and invalid) along with their category/feed names and their validity status
 
 ![ttirssi screenshot](/../assets/assets/ttirssi.png?raw=true)
