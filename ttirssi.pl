@@ -8,7 +8,7 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.05';
+$VERSION = '0.06';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
     contact => 'frantisel@sumsal.cz',
@@ -16,7 +16,7 @@ $VERSION = '0.05';
     description => 'An irssi script which shows recent articles from tt-rss instance in irssi window',
     license => 'BSD',
     url     => 'https://github.com/mrc0mmand/ttirssi',
-    changed => 'Fri Jan 29 11:41:52 CET 2016',
+    changed => 'Fri Feb  5 21:08:51 CET 2016',
 );
 
 Irssi::settings_add_str('ttirssi', 'ttirssi_url', '');
@@ -45,12 +45,12 @@ our @categories;
 sub cmd_search {
     my $searchstr = shift;
 
-    if(!$api{'is_logged'} && &ttrss_login()) {
+    if(!$api{'is_logged'} && ttrss_login()) {
         return;
     }
 
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
-    my $response = &http_post_request($api{'url'}, $post_data);
+    my $response = http_post_request($api{'url'}, $post_data);
 
     if($response->is_success) {
         my $json_resp;
@@ -59,39 +59,39 @@ sub cmd_search {
         };
 
         if($@) {
-            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            print_win("Received malformed JSON response from server - check server configuration", "error");
             return;
         }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
-            &print_win("Search results for: $searchstr", "info");
+            print_win("Search results for: $searchstr", "info");
             foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
                 if($cat->{'name'} =~ /$searchstr/) {
-                    &print_win("Type: CAT, ID: %C" . $cat->{'bare_id'} . "%n, Name: " . $cat->{'name'});
+                    print_win("Type: CAT, ID: %C" . $cat->{'bare_id'} . "%n, Name: " . $cat->{'name'});
                 }
 
                 foreach my $feed (@{$cat->{'items'}}) {
                     if($feed->{'name'} =~ /$searchstr/) {
-                        &print_win("Type: FEED, ID: %M" . $feed->{'bare_id'} . "%n, Name: " . $feed->{'name'});
+                        print_win("Type: FEED, ID: %M" . $feed->{'bare_id'} . "%n, Name: " . $feed->{'name'});
                     }
                 }
             }
         } else {
-            my $error = &ttrss_parse_error($json_resp);
-            &print_win("Couldn't fetch feeds: $error", "error");
+            my $error = ttrss_parse_error($json_resp);
+            print_win("Couldn't fetch feeds: $error", "error");
             if($error eq "NOT_LOGGED_IN") {
                 $api{'is_logged'} = 0;
             }
         }
     } else {
-        &print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+        print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
 }
 
 sub cmd_check {
     my $data = shift;
 
-    if(!$api{'is_logged'} && &ttrss_login()) {
+    if(!$api{'is_logged'} && ttrss_login()) {
         return;
     }
 
@@ -99,7 +99,7 @@ sub cmd_check {
     my $listall = exists $href->{'listall'};
     my $remove = exists $href->{'remove'};
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
-    my $response = &http_post_request($api{'url'}, $post_data);
+    my $response = http_post_request($api{'url'}, $post_data);
     my $catstr = "";
     my $feedstr = "";
 
@@ -113,19 +113,19 @@ sub cmd_check {
         };
 
         if($@) {
-            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            print_win("Received malformed JSON response from server - check server configuration", "error");
             return;
         }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
-                if(&array_remove_id(\@c, $cat->{'bare_id'}) && $listall) {
-                    &print_win("CAT:%C " . $cat->{'bare_id'} . "%n - " . $cat->{'name'}, "info");
+                if(array_remove_id(\@c, $cat->{'bare_id'}) && $listall) {
+                    print_win("CAT:%C " . $cat->{'bare_id'} . "%n - " . $cat->{'name'}, "info");
                 }
 
                 foreach my $feed (@{$cat->{'items'}}) {
-                    if(&array_remove_id(\@f, $feed->{'bare_id'}) && $listall) {
-                        &print_win("FEED:%M " . $feed->{'bare_id'} . "%n - " . $feed->{'name'}, "info");
+                    if(array_remove_id(\@f, $feed->{'bare_id'}) && $listall) {
+                        print_win("FEED:%M " . $feed->{'bare_id'} . "%n - " . $feed->{'name'}, "info");
                     }
                 }
             }
@@ -137,7 +137,7 @@ sub cmd_check {
 
             if($#c ne -1) {
                 my $str = "";
-                &print_win("Invalid category IDs: ", "warn");
+                print_win("Invalid category IDs: ", "warn");
                 foreach my $cat (@c) {
                     $str .= "%C " . $cat->{'id'} . "%n ";
                     if($remove) {
@@ -145,12 +145,12 @@ sub cmd_check {
                     }
                 }
 
-                &print_win($str);
+                print_win($str);
             }
 
             if($#f ne -1) {
                 my $str = "";
-                &print_win("Invalid feed IDs: ", "warn");
+                print_win("Invalid feed IDs: ", "warn");
                 foreach my $feed (@f) {
                     $str .= "%M " . $feed->{'id'} . "%n ";
                     if($remove) {
@@ -158,7 +158,7 @@ sub cmd_check {
                     }
                 }
 
-                &print_win($str);
+                print_win($str);
             }
 
             if($remove) {
@@ -171,20 +171,21 @@ sub cmd_check {
                 Irssi::settings_set_str('ttirssi_categories', $catstr);
                 Irssi::settings_set_str('ttirssi_feeds', $feedstr);
                 Irssi::signal_emit('setup changed');
+                # TODO: Call reload
             }
 
             if($#c eq -1 && $#f eq -1) {
-                &print_win("All IDs are correct", "info");
+                print_win("All IDs are correct", "info");
             }
         } else {
-            my $error = &ttrss_parse_error($json_resp);
-            &print_win("Couldn't fetch feeds: $error", "error");
+            my $error = ttrss_parse_error($json_resp);
+            print_win("Couldn't fetch feeds: $error", "error");
             if($error eq "NOT_LOGGED_IN") {
                 $api{'is_logged'} = 0;
             }
         }
     } else {
-        &print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+        print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
 }
 
@@ -221,7 +222,7 @@ sub print_info {
 sub print_win {
     my ($message, $type) = @_;
 
-    if(&check_win()) {
+    if(check_win()) {
         return;
     }
 
@@ -239,6 +240,7 @@ sub print_win {
 }
 
 sub http_post_request {
+    # TODO: Blocking I/O in request could cause some problems
     my ($url, $data) = @_;
     my $ua = new LWP::UserAgent;
     $ua->agent("ttirssi $VERSION");
@@ -265,7 +267,7 @@ sub ttrss_parse_error {
 # function returns non-zero integer (1 => recoverable error, 2 => unrecoverable).
 sub ttrss_login {
     my $post_data = '{ "op":"login", "user":"' . $api{'username'} . '","password":"' . $api{'password'} . '" }';
-    my $response = &http_post_request($api{'url'}, $post_data);
+    my $response = http_post_request($api{'url'}, $post_data);
 
     if($response->is_success) {
         my $json_resp;
@@ -274,7 +276,7 @@ sub ttrss_login {
         };
 
         if($@) {
-            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            print_win("Received malformed JSON response from server - check server configuration", "error");
             return 1;
         }
 
@@ -283,22 +285,22 @@ sub ttrss_login {
             return 0;
         } else {
             my $rc = 2;
-            my $error = &ttrss_parse_error($json_resp);
+            my $error = ttrss_parse_error($json_resp);
 
             if($error eq "LOGIN_ERROR") {
-                &print_win("Incorrect username/password", "error");
+                print_win("Incorrect username/password", "error");
             } elsif($error eq "API_DISABLED") {
-                &print_win("API is disabled", "error");
+                print_win("API is disabled", "error");
             } else {
                 # Probably recoverable error
-                &print_win($error, "error");
+                print_win($error, "error");
                 $rc = 1;
             }
 
             return $rc;
         }
     } else {
-        &print_win("(" . $response->code . ") " . $response->message, "error");
+        print_win("(" . $response->code . ") " . $response->message, "error");
         return 0;
     }
 }
@@ -310,7 +312,7 @@ sub ttrss_login {
 sub ttrss_parse_feed {
     my ($feed, $last, $limit, $is_cat) = @_;
 
-    if(&check_win()) {
+    if(check_win()) {
         return;
     }
 
@@ -320,7 +322,7 @@ sub ttrss_parse_feed {
     my $post_data = '{ "sid":"' . $api{'session'} . '", "op":"getHeadlines", "feed_id": ' . 
                     $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . 
                     $is_cat . ', "order_by":"feed_dates" }';
-    my $response = &http_post_request($api{'url'}, $post_data);
+    my $response = http_post_request($api{'url'}, $post_data);
 
     if($response->is_success) {
         my $json_resp;
@@ -329,7 +331,7 @@ sub ttrss_parse_feed {
         };
 
         if($@) {
-            &print_win("Received malformed JSON response from server - check server configuration", "error");
+            print_win("Received malformed JSON response from server - check server configuration", "error");
             return $rc;
         }
 
@@ -357,14 +359,14 @@ sub ttrss_parse_feed {
                 }
             }
         } else {
-            my $error = &ttrss_parse_error($json_resp);
-            &print_win("Couldn't fetch feed headlines: $error", "error");
+            my $error = ttrss_parse_error($json_resp);
+            print_win("Couldn't fetch feed headlines: $error", "error");
             if($error eq "NOT_LOGGED_IN") {
                 $api{'is_logged'} = 0;
             }
         }
     } else {
-        &print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
+        print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
     }
 
     return $rc;
@@ -378,17 +380,17 @@ sub create_win {
     # If desired window already exists, don't create a new one
     $win = Irssi::window_find_name($win_name);
     if($win) {
-        &print_info("Will use an existing window '$win_name'", "info");
+        print_info("Will use an existing window '$win_name'", "info");
         return 0;
     }
 
     $win = Irssi::Windowitem::window_create($win_name, 1);
     if(not $win) {
-        &print_info("Failed to create window '$win_name'", "error");
+        print_info("Failed to create window '$win_name'", "error");
         return 1;
     }
 
-    &print_info("Created a new window '$win_name'", "info");
+    print_info("Created a new window '$win_name'", "info");
     $win->set_name($win_name);
 
     return 0;
@@ -396,9 +398,9 @@ sub create_win {
 
 sub check_win {
     if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
-        &print_info("Missing window '$win_name'", "error");
-        if(&create_win()) {
-            &remove_update_event();
+        print_info("Missing window '$win_name'", "error");
+        if(create_win()) {
+            remove_update_event();
             return 1;
         }
     }
@@ -421,17 +423,17 @@ sub remove_update_event {
 # Params: Array of two elements: feed number, article limit
 sub call_update {
     if($api{'is_logged'}) {
-        &do_update();
+        do_update();
     } else {
-        my $loginrc = &ttrss_login();
+        my $loginrc = ttrss_login();
         if($loginrc eq 0) {
             $api{'is_logged'} = 1;
-            &do_update();
+            do_update();
         } elsif($loginrc eq 1) {
-            &print_win("Recoverable error - next try in ". $update_interval . " seconds", "warn");
+            print_win("Recoverable error - next try in ". $update_interval . " seconds", "warn");
         } else {
-            &print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
-            &remove_update_event();
+            print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
+            remove_update_event();
             return;
         }
     }
@@ -441,9 +443,9 @@ sub do_update {
     my $rc;
 
     foreach my $feed (@feeds) {
-        $rc = &ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
+        $rc = ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
         if($rc eq -1) {
-            &print_win("Next try in " . $update_interval . " seconds", "warn");
+            print_win("Next try in " . $update_interval . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $feed->{'last_id'} = $rc;
@@ -451,9 +453,9 @@ sub do_update {
     }
 
     foreach my $cat (@categories) {
-        $rc = &ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $article_limit, 1);
+        $rc = ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $article_limit, 1);
         if($rc eq -1) {
-            &print_win("Next try in " . $update_interval . " seconds", "warn");
+            print_win("Next try in " . $update_interval . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $cat->{'last_id'} = $rc;
@@ -466,33 +468,33 @@ sub check_settings {
     my $rc = 0;
 
     if($api{'inst_url'} eq "") {
-        &print_info("%9ttirssi_url%9 is required but not set", "error");
+        print_info("%9ttirssi_url%9 is required but not set", "error");
         $rc = 1;
     }
 
     if($api{'username'} eq "") {
-        &print_info("%9ttirssi_username%9 is required but not set", "error");
+        print_info("%9ttirssi_username%9 is required but not set", "error");
         $rc = 1;
     }
 
     if($api{'password'} eq "") {
-        &print_info("%9ttirssi_password%9 is required but not set", "error");
+        print_info("%9ttirssi_password%9 is required but not set", "error");
         $rc = 1;
     }
 
     if($win_name eq "") {
-        &print_info("%9ttirssi_win%9 is required but not set", "error");
+        print_info("%9ttirssi_win%9 is required but not set", "error");
         $rc = 1;
     }
 
     if($update_interval < 15) {
         $update_interval = 60;
-        &print_info("%9ttirssi_update_interval%9 has an invalid value [min: 15] (using default: 60)", "warn");
+        print_info("%9ttirssi_update_interval%9 has an invalid value [min: 15] (using default: 60)", "warn");
     }
 
     if($article_limit < 1 || $article_limit > 200) {
         $article_limit = 25;
-        &print_info("%9ttirssi_article_limit%9 has an invalid value [min: 1, max: 200] (using default: 25)", "warn");
+        print_info("%9ttirssi_article_limit%9 has an invalid value [min: 1, max: 200] (using default: 25)", "warn");
     }
 
     return $rc;
@@ -504,7 +506,7 @@ for(split(/\s+/, $feedstr)) {
     if($_ =~ /^\-?\d+\z/) {
         push(@feeds, { "id" => $_, "last_id" => -1 });
     } else {
-        &print_info("Invalid feed ID '$_', skipping...", "warn");
+        print_info("Invalid feed ID '$_', skipping...", "warn");
     }
 }
 
@@ -513,7 +515,7 @@ for(split(/\s+/, $catstr)) {
     if($_ =~ /^\-?\d+\z/) {
         push(@categories, { "id" => $_, "last_id" => -1 });
     } else {
-        &print_info("Invalid category ID '$_', skipping...", "warn");
+        print_info("Invalid category ID '$_', skipping...", "warn");
     }
 }
 
@@ -527,13 +529,13 @@ $api{'url'} = $api{'inst_url'} . "/api/";
 $api{'session'} = "";
 $api{'is_logged'} = 0;
 
-if(&check_settings()) {
-    &print_info("Can't continue without valid settings", "error");
+if(check_settings()) {
+    print_info("Can't continue without valid settings", "error");
     return;
 }
 
-if(&create_win()) {
+if(create_win()) {
     return;
 }
 
-&add_update_event();
+add_update_event();
