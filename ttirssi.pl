@@ -97,8 +97,11 @@ sub cmd_check {
 
     my ($href) = Irssi::command_parse_options('ttirssi_check', $data);
     my $listall = exists $href->{'listall'};
+    my $remove = exists $href->{'remove'};
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
     my $response = &http_post_request($api{'url'}, $post_data);
+    my $catstr = "";
+    my $feedstr = "";
 
     if($response->is_success) {
         my @c = @categories;
@@ -127,11 +130,19 @@ sub cmd_check {
                 }
             }
 
+            if($remove) {
+                $catstr = Irssi::settings_get_str('ttirssi_categories');
+                $feedstr = Irssi::settings_get_str('ttirssi_feeds');
+            }
+
             if($#c ne -1) {
                 my $str = "";
                 &print_win("Invalid category IDs: ", "warn");
                 foreach my $cat (@c) {
                     $str .= "%C " . $cat->{'id'} . "%n ";
+                    if($remove) {
+                        $catstr =~ s/((?<=\s)|(?<=^))$cat->{'id'}(?=(\s|$))//g;
+                    }
                 }
 
                 &print_win($str);
@@ -142,9 +153,24 @@ sub cmd_check {
                 &print_win("Invalid feed IDs: ", "warn");
                 foreach my $feed (@f) {
                     $str .= "%M " . $feed->{'id'} . "%n ";
+                    if($remove) {
+                        $feedstr =~ s/((?<=\s)|(?<=^))$feed->{'id'}(?=(\s|$))//g;
+                    }
                 }
 
                 &print_win($str);
+            }
+
+            if($remove) {
+                # Clean excessive spaces
+                $catstr =~ s/\s+/ /g;
+                $catstr =~ s/^\s+|\s+$//g;
+                $feedstr =~ s/\s+/ /g;
+                $feedstr =~ s/^\s+|\s+$//g;
+
+                Irssi::settings_set_str('ttirssi_categories', $catstr);
+                Irssi::settings_set_str('ttirssi_feeds', $feedstr);
+                Irssi::signal_emit('setup changed');
             }
 
             if($#c eq -1 && $#f eq -1) {
