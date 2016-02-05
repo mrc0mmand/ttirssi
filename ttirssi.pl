@@ -8,7 +8,7 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
     contact => 'frantisel@sumsal.cz',
@@ -318,14 +318,14 @@ sub ttrss_login {
 # ttrss_login must be called before to obtain valid session ID
 # Params: $feed, $limit
 sub ttrss_parse_feed {
-    my ($feed, $last, $limit, $is_cat) = @_;
+    my ($feed, $last_id, $limit, $is_cat) = @_;
 
     if(check_win()) {
         return;
     }
 
     my $rc = -1;
-    my $first_item = (($last eq -1) ? "" : '"since_id" : '. $last . ', ');
+    my $first_item = (($last_id eq -1) ? "" : '"since_id" : '. $last_id . ', ');
     $is_cat = ($is_cat) ? "true" : "false";
     my $post_data = '{ "sid":"' . $api{'session'} . '", "op":"getHeadlines", "feed_id": ' . 
                     $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . 
