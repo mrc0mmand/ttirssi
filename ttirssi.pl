@@ -404,6 +404,7 @@ sub create_win {
 sub check_win {
     if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
         if(create_win() != 0) {
+            print_info("Can't continue without valid window", "error");
             remove_update_event();
             return 1;
         }

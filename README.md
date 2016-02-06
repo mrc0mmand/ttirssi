@@ -28,7 +28,7 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * `ttirssi_article_limit` - max amount of articles which will be fetched during each update (default: 25)
     * `ttirssi_feeds` - space separated list of feed IDs to fetch (default: -3)
     * `ttirssi_categories` - space separated list of category IDs to fetch (default: *empty*)
-* Reload **ttirssi**: `/script load ttirssi.pl` - if everything is set correctly, ttirssi should do an initial feed fetch
+* Reload **ttirssi**: `/ttirssi_reload` - if everything is set correctly, ttirssi should do an initial feed fetch
 
 ## Commands
 * `ttirssi_search` - because `ttirssi_feeds` and `ttirssi_categories` require IDs as their parameters, this function should make this easier
