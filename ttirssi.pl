@@ -197,7 +197,7 @@ sub array_remove_id {
     my ($a, $id) = @_;
     my $rc = 0;
 
-    for(my $i = 0; $i < $#{$a}; $i++) {
+    for(my $i = 0; $i <= $#{$a}; $i++) {
         if($a->[$i]->{'id'} == $id) {
             splice(@$a, $i, 1);
             $rc = 1;
