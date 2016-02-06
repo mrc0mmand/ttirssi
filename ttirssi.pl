@@ -403,8 +403,7 @@ sub create_win {
 
 sub check_win {
     if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
-        print_info("Missing window '$win_name'", "error");
-        if(create_win()) {
+        if(create_win() != 0) {
             remove_update_event();
             return 1;
         }
@@ -595,14 +594,14 @@ Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
 Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
 Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 
-if(load_settings() != 0 || create_win() != 0) {
-    return 1;
-}
-
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
 Irssi::command_bind('ttirssi_reload', 'cmd_reload');
 
 Irssi::command_set_options('ttirssi_check', '-listall -remove');
+
+if(load_settings() != 0 || create_win() != 0) {
+    return 1;
+}
 
 add_update_event();
