@@ -8,15 +8,15 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
-    contact => 'frantisel@sumsal.cz',
+    contact => 'frantisek@sumsal.cz',
     name    => 'ttirssi',
     description => 'An irssi script which shows recent articles from tt-rss instance in irssi window',
     license => 'BSD',
     url     => 'https://github.com/mrc0mmand/ttirssi',
-    changed => 'Fri Feb  5 21:08:51 CET 2016',
+    changed => 'Sat Feb  6 23:39:02 CET 2016',
 );
 
 my %api;

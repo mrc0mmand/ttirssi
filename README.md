@@ -2,7 +2,7 @@
 
 An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/gitlab/fox/tt-rss/wikis/home) instance in irssi window 
 
-## Requires
+## Requirements
 * Perl modules
     * AnyEvent
     * JSON
