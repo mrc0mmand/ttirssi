@@ -186,7 +186,7 @@ sub cmd_check {
 }
 
 sub cmd_reload {
-    print_win("Reloading settings...", "info");
+    print_info("Reloading settings...", "info");
     reload_settings();
 }
 
@@ -561,7 +561,7 @@ sub reload_settings {
     undef @categories;
 
     if(load_settings() == 0) {
-        print_win("Settings have been reloaded", "info");
+        print_info("Settings have been reloaded", "info");
         add_update_event();
     } else {
         exit 1;
