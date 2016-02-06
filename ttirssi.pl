@@ -185,6 +185,11 @@ sub cmd_check {
     return;
 }
 
+sub cmd_reload {
+    print_win("Reloading settings...", "info");
+    reload_settings();
+}
+
 sub array_remove_id {
     my ($a, $id) = @_;
     my $rc = 0;
@@ -596,6 +601,7 @@ if(load_settings() != 0 || create_win() != 0) {
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
+Irssi::command_bind('ttirssi_reload', 'cmd_reload');
 
 Irssi::command_set_options('ttirssi_check', '-listall -remove');
 

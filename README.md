@@ -38,5 +38,6 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * Options:
         * `-remove` - remove all invalid IDs from their variables after the check is done
         * `-listall` - list all IDs (valid and invalid) along with their category/feed names and their validity status
+* `ttirssi_reload` - reloads internal structures and loads new values of `ttirssi_*` settings
 
 ![ttirssi screenshot](/../assets/assets/ttirssi.png?raw=true)
