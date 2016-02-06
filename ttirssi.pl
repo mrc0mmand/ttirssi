@@ -19,20 +19,6 @@ $VERSION = '0.07';
     changed => 'Fri Feb  5 21:08:51 CET 2016',
 );
 
-Irssi::settings_add_str('ttirssi', 'ttirssi_url', '');
-Irssi::settings_add_str('ttirssi', 'ttirssi_username', '');
-Irssi::settings_add_str('ttirssi', 'ttirssi_password', '');
-Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
-Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
-Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
-Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
-Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
-
-Irssi::command_bind('ttirssi_search', 'cmd_search');
-Irssi::command_bind('ttirssi_check', 'cmd_check');
-
-Irssi::command_set_options('ttirssi_check', '-listall -remove');
-
 my %api;
 my $win_name;
 my $win;
@@ -104,6 +90,8 @@ sub cmd_check {
     my $response = http_post_request($api{'url'}, $post_data);
     my $catstr = "";
     my $feedstr = "";
+    my $catstr_orig = "";
+    my $feedstr_orig = "";
 
     if($response->is_success) {
         my @c = @categories;
@@ -135,6 +123,8 @@ sub cmd_check {
             if($remove) {
                 $catstr = Irssi::settings_get_str('ttirssi_categories');
                 $feedstr = Irssi::settings_get_str('ttirssi_feeds');
+                $catstr_orig = $catstr;
+                $feedstr_orig = $feedstr;
             }
 
             if($#c ne -1) {
@@ -163,7 +153,7 @@ sub cmd_check {
                 print_win($str);
             }
 
-            if($remove) {
+            if($remove && ($catstr ne $catstr_orig || $feedstr ne $feedstr_orig)) {
                 # Clean excessive spaces
                 $catstr =~ s/\s+/ /g;
                 $catstr =~ s/^\s+|\s+$//g;
@@ -173,7 +163,9 @@ sub cmd_check {
                 Irssi::settings_set_str('ttirssi_categories', $catstr);
                 Irssi::settings_set_str('ttirssi_feeds', $feedstr);
                 Irssi::signal_emit('setup changed');
-                # TODO: Call reload
+                print_win("Settings have been updated, calling reload...", "info");
+
+                reload_settings();
             }
 
             if($#c eq -1 && $#f eq -1) {
@@ -517,41 +509,94 @@ sub check_settings {
 }
 
 # Get settings
-my $feedstr = Irssi::settings_get_str('ttirssi_feeds');
-for(split(/\s+/, $feedstr)) {
-    if($_ =~ /^\-?\d+\z/) {
-        push(@feeds, { "id" => $_, "last_id" => -1 });
-    } else {
-        print_info("Invalid feed ID '$_', skipping...", "warn");
+sub load_settings {
+    my $feedstr = Irssi::settings_get_str('ttirssi_feeds');
+    for(split(/\s+/, $feedstr)) {
+        if($_ =~ /^\-?\d+\z/) {
+            push(@feeds, { "id" => $_, "last_id" => -1 });
+        } else {
+            print_info("Invalid feed ID '$_', skipping...", "warn");
+        }
     }
+
+    my $catstr = Irssi::settings_get_str('ttirssi_categories');
+    for(split(/\s+/, $catstr)) {
+        if($_ =~ /^\-?\d+\z/) {
+            push(@categories, { "id" => $_, "last_id" => -1 });
+        } else {
+            print_info("Invalid category ID '$_', skipping...", "warn");
+        }
+    }
+
+    $api{'inst_url'} = Irssi::settings_get_str('ttirssi_url');
+    $api{'username'} = Irssi::settings_get_str('ttirssi_username');
+    $api{'password'}= Irssi::settings_get_str('ttirssi_password');
+    $win_name = Irssi::settings_get_str('ttirssi_win');
+    $update_interval = Irssi::settings_get_int('ttirssi_update_interval');
+    $article_limit = Irssi::settings_get_int('ttirssi_article_limit');
+    $api{'url'} = $api{'inst_url'} . "/api/";
+    $api{'session'} = "";
+    $api{'is_logged'} = 0;
+
+    if(check_settings()) {
+        print_info("Can't continue without valid settings", "error");
+        return 1;
+    }
+
+    return 0;
 }
 
-my $catstr = Irssi::settings_get_str('ttirssi_categories');
-for(split(/\s+/, $catstr)) {
-    if($_ =~ /^\-?\d+\z/) {
-        push(@categories, { "id" => $_, "last_id" => -1 });
+sub reload_settings {
+    remove_update_event();
+
+    my @feeds_bak = @feeds;
+    my @categories_bak = @categories;
+    undef %api;
+    undef @feeds;
+    undef @categories;
+
+    if(load_settings() == 0) {
+        print_win("Settings have been reloaded", "info");
+        add_update_event();
     } else {
-        print_info("Invalid category ID '$_', skipping...", "warn");
+        exit 1;
     }
-}
 
-$api{'inst_url'} = Irssi::settings_get_str('ttirssi_url');
-$api{'username'} = Irssi::settings_get_str('ttirssi_username');
-$api{'password'}= Irssi::settings_get_str('ttirssi_password');
-$win_name = Irssi::settings_get_str('ttirssi_win');
-$update_interval = Irssi::settings_get_int('ttirssi_update_interval');
-$article_limit = Irssi::settings_get_int('ttirssi_article_limit');
-$api{'url'} = $api{'inst_url'} . "/api/";
-$api{'session'} = "";
-$api{'is_logged'} = 0;
+    copy_last_id(\@feeds_bak, \@feeds);
+    copy_last_id(\@categories_bak, \@categories);
 
-if(check_settings()) {
-    print_info("Can't continue without valid settings", "error");
     return;
 }
 
-if(create_win()) {
-    return;
+sub copy_last_id {
+    my ($old, $new) = @_;
+
+    foreach my $oit (@$old) {
+        foreach my $nit (@$new) {
+            if($nit->{'id'} == $oit->{'id'}) {
+                $nit->{'last_id'} = $oit->{'last_id'};
+            }
+        }
+    }
 }
+
+# Init
+Irssi::settings_add_str('ttirssi', 'ttirssi_url', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_username', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_password', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_win', 'ttirssi');
+Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
+Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
+Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
+Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
+
+if(load_settings() != 0 || create_win() != 0) {
+    return 1;
+}
+
+Irssi::command_bind('ttirssi_search', 'cmd_search');
+Irssi::command_bind('ttirssi_check', 'cmd_check');
+
+Irssi::command_set_options('ttirssi_check', '-listall -remove');
 
 add_update_event();
