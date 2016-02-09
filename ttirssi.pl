@@ -2,6 +2,7 @@ use strict;
 use warnings;
 use AnyEvent;
 use Irssi;
+use Irssi::TextUI;
 use LWP::UserAgent;
 use HTTP::Request;
 use HTML::Entities;
@@ -24,6 +25,7 @@ my $win_name;
 my $win;
 my $update_interval;
 my $update_event;
+my $update_status;
 my $article_limit;
 my @feeds;
 my @categories;
@@ -168,6 +170,28 @@ sub cmd_reload {
     reload_settings();
 }
 
+sub sb_status {
+    my ($sb_item, $get_size_only) = @_;
+    $update_status = "%K?%n" if not $update_status;
+    $sb_item->default_handler($get_size_only, "{sb $update_status}", '', 0);
+}
+
+sub sb_status_update {
+    my ($status) = @_;
+    my $c;
+
+    if($status < 1) {
+        $c = "%G";
+    } elsif($status < 2) {
+        $c = "%Y";
+    } else {
+        $c = "%R";
+    }
+
+    $update_status = "$c$status%n";
+    Irssi::statusbar_items_redraw('ttirssi_status');
+}
+
 sub array_remove_id {
     my ($a, $id) = @_;
     my $rc = 0;
@@ -227,7 +251,7 @@ sub http_post_request {
     my ($url, $data) = @_;
     my $ua = LWP::UserAgent->new;
     $ua->agent("ttirssi $VERSION");
-    $ua->timeout(10);
+    $ua->timeout(5);
     my $request = HTTP::Request->new("POST" => $url);
     $request->content($data);
 
@@ -383,6 +407,7 @@ sub create_win {
 }
 
 sub check_win {
+    # TODO: Storing and later using any Irssi object may result in use-after-free related crash
     if(!$win || !Irssi::window_find_refnum($win->{'refnum'})) {
         if(create_win() != 0) {
             print_info("Can't continue without valid window", "error");
@@ -412,6 +437,8 @@ sub remove_update_event {
 # ttrss_login.
 # Params: Array of two elements: feed number, article limit
 sub call_update {
+    my $sttime = time;
+
     if($api{'is_logged'}) {
         do_update();
     } else {
@@ -424,10 +451,10 @@ sub call_update {
         } else {
             print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
             remove_update_event();
-            return;
         }
     }
 
+    sb_status_update((time - $sttime));
     return;
 }
 
@@ -579,8 +606,10 @@ Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
 Irssi::command_bind('ttirssi_reload', 'cmd_reload');
-
 Irssi::command_set_options('ttirssi_check', '-listall -remove');
+
+Irssi::statusbar_item_register('ttirssi_status', 0, 'sb_status');
+sb_status_update(0);
 
 if(load_settings() != 0 || create_win() != 0) {
     return 1;
