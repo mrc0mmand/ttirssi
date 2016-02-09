@@ -37,18 +37,9 @@ sub cmd_search {
 
     my $post_data = '{ "sid":"' . $api{'session'}. '", "op":"getFeedTree" }';
     my $response = http_post_request($api{'url'}, $post_data);
+    my $json_resp;
 
-    if($response->is_success) {
-        my $json_resp;
-        eval {
-            $json_resp = JSON->new->utf8->decode($response->content);
-        };
-
-        if($@) {
-            print_win("Received malformed JSON response from server - check server configuration", "error");
-            return;
-        }
-
+    if(get_response_json(\$response, \$json_resp) == 0) {
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             print_win("Search results for: $searchstr", "info");
             foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
@@ -69,8 +60,6 @@ sub cmd_search {
                 $api{'is_logged'} = 0;
             }
         }
-    } else {
-        print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
 
     return;
@@ -92,20 +81,11 @@ sub cmd_check {
     my $feedstr = "";
     my $catstr_orig = "";
     my $feedstr_orig = "";
+    my $json_resp;
 
-    if($response->is_success) {
+    if(get_response_json(\$response, \$json_resp) == 0) {
         my @c = @categories;
         my @f = @feeds;
-
-        my $json_resp;
-        eval {
-            $json_resp = JSON->new->utf8->decode($response->content);
-        };
-
-        if($@) {
-            print_win("Received malformed JSON response from server - check server configuration", "error");
-            return;
-        }
 
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             foreach my $cat (@{$json_resp->{'content'}{'categories'}{'items'}}) {
@@ -178,8 +158,6 @@ sub cmd_check {
                 $api{'is_logged'} = 0;
             }
         }
-    } else {
-        print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
     }
 
     return;
@@ -256,6 +234,30 @@ sub http_post_request {
     return $ua->request($request);
 }
 
+sub get_response_json {
+    my ($response, $data) = @_;
+    $response = $$response;
+
+    if($response->is_success) {
+        my $json_resp;
+        eval {
+            $json_resp = JSON->new->utf8->decode($response->content);
+        };
+
+        if($@) {
+            print_win("Received malformed JSON response from server - check server configuration", "error");
+            return 1;
+        }
+
+        $$data = $json_resp;
+        return 0;
+    } else {
+        print_win("Couldn't fetch feeds: (" . $response->code . ") " . $response->message, "error");
+    }
+
+    return 1;
+}
+
 sub ttrss_parse_error {
     my $json_resp = shift;
 
@@ -273,18 +275,9 @@ sub ttrss_parse_error {
 sub ttrss_login {
     my $post_data = '{ "op":"login", "user":"' . $api{'username'} . '","password":"' . $api{'password'} . '" }';
     my $response = http_post_request($api{'url'}, $post_data);
+    my $json_resp;
 
-    if($response->is_success) {
-        my $json_resp;
-        eval {
-            $json_resp = JSON->new->utf8->decode($response->content);
-        };
-
-        if($@) {
-            print_win("Received malformed JSON response from server - check server configuration", "error");
-            return 1;
-        }
-
+    if(get_response_json(\$response, \$json_resp) == 0) {
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             $api{'session'} = $json_resp->{'content'}->{'session_id'};
             return 0;
@@ -304,10 +297,9 @@ sub ttrss_login {
 
             return $rc;
         }
-    } else {
-        print_win("(" . $response->code . ") " . $response->message, "error");
-        return 0;
     }
+
+    return 1;
 }
 
 # Function parses feed $feed and prints $limit articles into window $win on success,
@@ -328,18 +320,9 @@ sub ttrss_parse_feed {
                     $feed . ', ' . $first_item . '"limit":' . $limit . ', "is_cat":' . 
                     $is_cat . ', "order_by":"feed_dates" }';
     my $response = http_post_request($api{'url'}, $post_data);
+    my $json_resp;
 
-    if($response->is_success) {
-        my $json_resp;
-        eval {
-            $json_resp = JSON->new->utf8->decode($response->content);
-        };
-
-        if($@) {
-            print_win("Received malformed JSON response from server - check server configuration", "error");
-            return $rc;
-        }
-
+    if(get_response_json(\$response, \$json_resp) == 0) {
         if(exists $json_resp->{'status'} && $json_resp->{'status'} eq 0) {
             $rc = -2;
             my @headlines = @{$json_resp->{'content'}};
@@ -370,8 +353,6 @@ sub ttrss_parse_feed {
                 $api{'is_logged'} = 0;
             }
         }
-    } else {
-        print_win("Couldn't fetch feed headlines: (" . $response->code . ") " . $response->message, "error");
     }
 
     return $rc;
