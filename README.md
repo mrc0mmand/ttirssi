@@ -42,7 +42,7 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
 
 ## UI
 * Optionally you can enable statusbar item `ttirssi_status`, which will show you how much time the last update took
-    * For instance command `/statusbar topic -after topicbarstart ttirssi_status` places status indicator at the beginning of the topic bar
+    * For instance command `/statusbar topic add -after topicbarstart ttirssi_status` places status indicator at the beginning of the topic bar
     * More info about `statusbar` command can be found in the [official irssi documentation](https://irssi.org/documentation/startup/#statusbar)
 
 
