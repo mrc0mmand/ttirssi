@@ -609,6 +609,7 @@ Irssi::command_bind('ttirssi_reload', 'cmd_reload');
 Irssi::command_set_options('ttirssi_check', '-listall -remove');
 
 Irssi::statusbar_item_register('ttirssi_status', 0, 'sb_status');
+Irssi::statusbars_recreate_items();
 sb_status_update(0);
 
 if(load_settings() != 0 || create_win() != 0) {
