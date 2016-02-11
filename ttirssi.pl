@@ -208,18 +208,17 @@ sub array_remove_id {
 
 sub print_info {
     my ($message, $type) = @_;
-    my $msglevel = MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT;
 
     if(not defined $type) {
-        Irssi::print("%g[ttirssi]%n " . $message, $msglevel);
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
     } elsif($type eq 'error') {
-        Irssi::print("%g[ttirssi] %RError: %n" . $message, $msglevel)
+        Irssi::print("%g[ttirssi] %RError: %n" . $message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'info') {
-        Irssi::print("%g[ttirssi] %GInfo: %n" . $message, $msglevel)
+        Irssi::print("%g[ttirssi] %GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'warn') {
-        Irssi::print("%g[ttirssi] %YWarning: %n" . $message, $msglevel)
+        Irssi::print("%g[ttirssi] %YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP);
     } else {
-        Irssi::print("%g[ttirssi]%n " . $message, $msglevel);
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
     }
 
     return;
@@ -227,21 +226,20 @@ sub print_info {
 
 sub print_win {
     my ($message, $type) = @_;
-    my $msglevel = MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT;
     if(check_win()) {
         return;
     }
 
     if(not defined $type) {
-        $win->print($message, $msglevel);
+        $win->print($message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
     } elsif($type eq 'error') {
-        $win->print("%RError: %n" . $message, $msglevel)
+        $win->print("%RError: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'info') {
-        $win->print("%GInfo: %n" . $message, $msglevel)
+        $win->print("%GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'warn') {
-        $win->print("%YWarning: %n" . $message, $msglevel)
+        $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } else {
-        $win->print($message, $msglevel);
+        $win->print($message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
     }
 
     return;
