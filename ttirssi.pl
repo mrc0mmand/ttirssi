@@ -212,7 +212,7 @@ sub print_info {
     my ($message, $type) = @_;
 
     if(not defined $type) {
-        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'error') {
         Irssi::print("%g[ttirssi] %RError: %n" . $message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'info') {
@@ -220,7 +220,7 @@ sub print_info {
     } elsif($type eq 'warn') {
         Irssi::print("%g[ttirssi] %YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP);
     } else {
-        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
+        Irssi::print("%g[ttirssi]%n " . $message, MSGLEVEL_CLIENTCRAP);
     }
 
     return;
@@ -233,7 +233,7 @@ sub print_win {
     }
 
     if(not defined $type) {
-        $win->print($message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
+        $win->print($message, MSGLEVEL_CLIENTCRAP);
     } elsif($type eq 'error') {
         $win->print("%RError: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'info') {
@@ -241,9 +241,9 @@ sub print_win {
     } elsif($type eq 'warn') {
         $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'hilight') {
-        $win->print($message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
+        $win->print($message, MSGLEVEL_PUBLIC|MSGLEVEL_HILIGHT);
     } else {
-        $win->print($message, MSGLEVEL_CLIENTCRAP);
+        $win->print($message, MSGLEVEL_PUBLIC);
     }
 
     return;
