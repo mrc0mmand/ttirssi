@@ -9,7 +9,7 @@ use HTML::Entities;
 use JSON;
 use vars qw($VERSION %IRSSI);
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 %IRSSI = (
     authors => 'Frantisek Sumsal',
     contact => 'frantisek@sumsal.cz',
@@ -240,8 +240,10 @@ sub print_win {
         $win->print("%GInfo: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'warn') {
         $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
-    } else {
+    } elsif($type eq 'hilight') {
         $win->print($message, MSGLEVEL_CLIENTCRAP|MSGLEVEL_HILIGHT);
+    } else {
+        $win->print($message, MSGLEVEL_CLIENTCRAP);
     }
 
     return;
@@ -355,6 +357,7 @@ sub ttrss_parse_feed {
             foreach my $feed (@headlines) {
                 # Replace all % with %% to prevent interpreting %X sequences as color codes
                 # There must be a better way...
+                my $hilight = 0;
                 my $url = $feed->{'link'};
                 $url =~ s/%/%%/g;
                 my $title = $feed->{'title'};
@@ -362,13 +365,15 @@ sub ttrss_parse_feed {
                 $title =~ s/%/%%/g;
                 $title =~ s/\n/ /g;
                 foreach(@hilight_words) {
-                    $title =~ s/(?'word'$_)/$hilight_color$+{word}%n/gi;
+                    if($title =~ s/(?'word'$_)/$hilight_color$+{word}%n/gi) {
+                        $hilight = 1;
+                    }
                 }
                 my $feed_title = $feed->{'feed_title'};
                 $feed_title =~ s/%/%%/g;
 
                 print_win("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
-                            $url . "%n");
+                            $url . "%n", (($hilight) ? "hilight" : ""));
 
                 if($rc < $feed->{'id'}) {
                     $rc = $feed->{'id'};
