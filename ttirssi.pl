@@ -26,6 +26,8 @@ my $win;
 my $update_interval;
 my $update_event;
 my $update_status;
+my $hilight_color;
+my @hilight_words;
 my $article_limit;
 my @feeds;
 my @categories;
@@ -359,11 +361,14 @@ sub ttrss_parse_feed {
                 decode_entities($title);
                 $title =~ s/%/%%/g;
                 $title =~ s/\n/ /g;
+                foreach(@hilight_words) {
+                    $title =~ s/(?'word'$_)/$hilight_color$+{word}%n/gi;
+                }
                 my $feed_title = $feed->{'feed_title'};
                 $feed_title =~ s/%/%%/g;
 
-                $win->print("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
-                            $url . "%n", MSGLEVEL_PUBLIC);
+                print_win("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
+                            $url . "%n");
 
                 if($rc < $feed->{'id'}) {
                     $rc = $feed->{'id'};
@@ -549,6 +554,8 @@ sub load_settings {
     $api{'url'} = $api{'inst_url'} . "/api/";
     $api{'session'} = "";
     $api{'is_logged'} = 0;
+    $hilight_color = Irssi::settings_get_str('hilight_color');
+    @hilight_words = split /\s+/, Irssi::settings_get_str('ttirssi_hilight_words');
 
     if(check_settings()) {
         print_info("Can't continue without valid settings", "error");
@@ -601,6 +608,7 @@ Irssi::settings_add_int('ttirssi', 'ttirssi_update_interval', '60');
 Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
 Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
 Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_hilight_words', '');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
