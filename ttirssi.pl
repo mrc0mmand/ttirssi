@@ -21,14 +21,10 @@ $VERSION = '0.09';
 );
 
 my %api;
-my $win_name;
+my %settings;
 my $win;
-my $update_interval;
-my $update_event;
 my $update_status;
-my $hilight_color;
-my @hilight_words;
-my $article_limit;
+my $update_event;
 my @feeds;
 my @categories;
 
@@ -364,8 +360,8 @@ sub ttrss_parse_feed {
                 decode_entities($title);
                 $title =~ s/%/%%/g;
                 $title =~ s/\n/ /g;
-                foreach(@hilight_words) {
-                    if($title =~ s/(?'word'$_)/$hilight_color$+{word}%n/gi) {
+                foreach(@{$settings{'hilight_words'}}) {
+                    if($title =~ s/(?'word'$_)/$settings{'hilight_color'}$+{word}%n/gi) {
                         $hilight = 1;
                     }
                 }
@@ -397,20 +393,20 @@ sub ttrss_parse_feed {
 # Returns 0 on success, 1 otherwise.
 sub create_win {
     # If desired window already exists, don't create a new one
-    $win = Irssi::window_find_name($win_name);
+    $win = Irssi::window_find_name($settings{'win_name'});
     if($win) {
-        print_info("Will use an existing window '$win_name'", "info");
+        print_info("Will use an existing window '$settings{'win_name'}'", "info");
         return 0;
     }
 
-    $win = Irssi::Windowitem::window_create($win_name, 1);
+    $win = Irssi::Windowitem::window_create($settings{'win_name'}, 1);
     if(not $win) {
-        print_info("Failed to create window '$win_name'", "error");
+        print_info("Failed to create window '$settings{'win_name'}'", "error");
         return 1;
     }
 
-    print_info("Created a new window '$win_name'", "info");
-    $win->set_name($win_name);
+    print_info("Created a new window '$settings{'win_name'}'", "info");
+    $win->set_name($settings{'win_name'});
 
     return 0;
 }
@@ -431,7 +427,9 @@ sub check_win {
 # Function creates new timeout event for feed updating.
 sub add_update_event {
     undef $update_event;
-    $update_event = AnyEvent->timer(after => 1, interval => $update_interval, cb => \&call_update);
+    $update_event = AnyEvent->timer(after => 1,
+                                    interval => $settings{'update_interval'},
+                                    cb => \&call_update);
 
     return;
 }
@@ -456,7 +454,7 @@ sub call_update {
             $api{'is_logged'} = 1;
             do_update();
         } elsif($loginrc eq 1) {
-            print_win("Recoverable error - next try in ". $update_interval . " seconds", "warn");
+            print_win("Recoverable error - next try in ". $settings{'update_interval'} . " seconds", "warn");
         } else {
             print_win("Unrecoverable error - reload ttirssi script after fixing the issue", "error");
             remove_update_event();
@@ -471,9 +469,9 @@ sub do_update {
     my $rc;
 
     foreach my $feed (@feeds) {
-        $rc = ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $article_limit, 0);
+        $rc = ttrss_parse_feed($feed->{'id'}, $feed->{'last_id'}, $settings{'article_limit'}, 0);
         if($rc eq -1) {
-            print_win("Next try in " . $update_interval . " seconds", "warn");
+            print_win("Next try in " . $settings{'update_interval'} . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $feed->{'last_id'} = $rc;
@@ -481,9 +479,9 @@ sub do_update {
     }
 
     foreach my $cat (@categories) {
-        $rc = ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $article_limit, 1);
+        $rc = ttrss_parse_feed($cat->{'id'}, $cat->{'last_id'}, $settings{'article_limit'}, 1);
         if($rc eq -1) {
-            print_win("Next try in " . $update_interval . " seconds", "warn");
+            print_win("Next try in " . $settings{'update_interval'} . " seconds", "warn");
             return;
         } elsif($rc ne -2) {
             $cat->{'last_id'} = $rc;
@@ -512,18 +510,18 @@ sub check_settings {
         $rc = 1;
     }
 
-    if($win_name eq "") {
+    if($settings{'win_name'} eq "") {
         print_info("%9ttirssi_win%9 is required but not set", "error");
         $rc = 1;
     }
 
-    if($update_interval < 15) {
-        $update_interval = 60;
+    if($settings{'update_interval'} < 15) {
+        $settings{'update_interval'} = 60;
         print_info("%9ttirssi_update_interval%9 has an invalid value [min: 15] (using default: 60)", "warn");
     }
 
-    if($article_limit < 1 || $article_limit > 200) {
-        $article_limit = 25;
+    if($settings{'article_limit'} < 1 || $settings{'article_limit'} > 200) {
+        $settings{'article_limit'} = 25;
         print_info("%9ttirssi_article_limit%9 has an invalid value [min: 1, max: 200] (using default: 25)", "warn");
     }
 
@@ -553,14 +551,14 @@ sub load_settings {
     $api{'inst_url'} = Irssi::settings_get_str('ttirssi_url');
     $api{'username'} = Irssi::settings_get_str('ttirssi_username');
     $api{'password'}= Irssi::settings_get_str('ttirssi_password');
-    $win_name = Irssi::settings_get_str('ttirssi_win');
-    $update_interval = Irssi::settings_get_int('ttirssi_update_interval');
-    $article_limit = Irssi::settings_get_int('ttirssi_article_limit');
+    $settings{'win_name'} = Irssi::settings_get_str('ttirssi_win');
+    $settings{'update_interval'} = Irssi::settings_get_int('ttirssi_update_interval');
+    $settings{'article_limit'} = Irssi::settings_get_int('ttirssi_article_limit');
     $api{'url'} = $api{'inst_url'} . "/api/";
     $api{'session'} = "";
     $api{'is_logged'} = 0;
-    $hilight_color = Irssi::settings_get_str('hilight_color');
-    @hilight_words = split /\s+/, Irssi::settings_get_str('ttirssi_hilight_words');
+    $settings{'hilight_color'} = Irssi::settings_get_str('hilight_color');
+    $settings{'hilight_words'} = [ split /\s+/, Irssi::settings_get_str('ttirssi_hilight_words') ];
 
     if(check_settings()) {
         print_info("Can't continue without valid settings", "error");
