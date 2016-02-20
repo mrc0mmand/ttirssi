@@ -237,7 +237,7 @@ sub print_win {
     } elsif($type eq 'warn') {
         $win->print("%YWarning: %n" . $message, MSGLEVEL_CLIENTCRAP)
     } elsif($type eq 'hilight') {
-        $win->print($message, MSGLEVEL_PUBLIC|MSGLEVEL_HILIGHT);
+        $win->print($message, MSGLEVEL_PUBLIC|MSGLEVEL_MSGS|MSGLEVEL_HILIGHT);
     } else {
         $win->print($message, MSGLEVEL_PUBLIC);
     }
