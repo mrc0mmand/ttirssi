@@ -29,6 +29,9 @@ An irssi script which shows recent articles from [tt-rss](https://tt-rss.org/git
     * `ttirssi_feeds` - space separated list of feed IDs to fetch (default: -3)
     * `ttirssi_categories` - space separated list of category IDs to fetch (default: *empty*)
     * `ttirssi_hilight_words` - space separated list of words which you will be hilighted for
+    * `ttirssi_hilight_type` - look of a hilighted message (default: word)
+        * `word` - hilight only a matched word in a message
+        * `line` - hilight an entire message with a matched word
 * Reload **ttirssi**: `/ttirssi_reload` - if everything is set correctly, ttirssi should do an initial feed fetch
 
 ## Commands

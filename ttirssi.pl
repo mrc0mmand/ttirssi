@@ -361,15 +361,27 @@ sub ttrss_parse_feed {
                 $title =~ s/%/%%/g;
                 $title =~ s/\n/ /g;
                 foreach(@{$settings{'hilight_words'}}) {
-                    if($title =~ s/(?'word'$_)/$settings{'hilight_color'}$+{word}%n/gi) {
+                    if($title =~ /$_/) {
                         $hilight = 1;
+                        if($settings{'hilight_type'} eq 'line') {
+                            # Break loop if the hilight type is set to 'line',
+                            # we will hilight the entire line anyway
+                            last;
+                        } else {
+                            $title =~ s/(?'word'$_)/%9$settings{'hilight_color'}$+{word}%n/gi;
+                        }
                     }
                 }
                 my $feed_title = $feed->{'feed_title'};
                 $feed_title =~ s/%/%%/g;
 
-                print_win("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
-                            $url . "%n", (($hilight) ? "hilight" : ""));
+                if($hilight && $settings{'hilight_type'} eq 'line') {
+                    print_win("%9" . $settings{'hilight_color'} . "[" . $feed_title . "] " . $title . " " .
+                              $url . "%n", "hilight");
+                } else {
+                    print_win("%K[%9%B" . $feed_title . "%9%K]%n " . $title . " %r" .
+                              $url . "%n", (($hilight) ? "hilight" : ""));
+                }
 
                 if($rc < $feed->{'id'}) {
                     $rc = $feed->{'id'};
@@ -559,6 +571,8 @@ sub load_settings {
     $api{'is_logged'} = 0;
     $settings{'hilight_color'} = Irssi::settings_get_str('hilight_color');
     $settings{'hilight_words'} = [ split /\s+/, Irssi::settings_get_str('ttirssi_hilight_words') ];
+    $settings{'hilight_type'} = lc(Irssi::settings_get_str('ttirssi_hilight_type'));
+    $settings{'hilight_type'} =~ s/^\s+|\s+$//g;
 
     if(check_settings()) {
         print_info("Can't continue without valid settings", "error");
@@ -612,6 +626,7 @@ Irssi::settings_add_int('ttirssi', 'ttirssi_article_limit', '25');
 Irssi::settings_add_str('ttirssi', 'ttirssi_feeds', '-3');
 Irssi::settings_add_str('ttirssi', 'ttirssi_categories', '');
 Irssi::settings_add_str('ttirssi', 'ttirssi_hilight_words', '');
+Irssi::settings_add_str('ttirssi', 'ttirssi_hilight_type', 'word');
 
 Irssi::command_bind('ttirssi_search', 'cmd_search');
 Irssi::command_bind('ttirssi_check', 'cmd_check');
