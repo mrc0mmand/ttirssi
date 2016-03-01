@@ -361,7 +361,7 @@ sub ttrss_parse_feed {
                 $title =~ s/%/%%/g;
                 $title =~ s/\n/ /g;
                 foreach(@{$settings{'hilight_words'}}) {
-                    if($title =~ /$_/) {
+                    if($title =~ /$_/i) {
                         $hilight = 1;
                         if($settings{'hilight_type'} eq 'line') {
                             # Break loop if the hilight type is set to 'line',
